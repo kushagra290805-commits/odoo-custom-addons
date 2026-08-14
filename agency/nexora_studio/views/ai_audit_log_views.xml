@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_nexora_ai_audit_log_form" model="ir.ui.view">
+        <field name="name">nexora.ai_audit_log.form</field>
+        <field name="model">nexora.ai_audit_log</field>
+        <field name="arch" type="xml">
+            <form string="AI Audit Log">
+                <header>
+                    <field name="status" widget="statusbar" statusbar_visible="pending,approved,rejected,modified,failed"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="builder_session_id"/>
+                            <field name="generation_stage"/>
+                            <field name="ai_provider"/>
+                            <field name="ai_model_name"/>
+                        </group>
+                        <group>
+                            <field name="execution_duration"/>
+                            <field name="token_usage"/>
+                            <field name="developer_id"/>
+                            <field name="approval_timestamp"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Payloads">
+                            <group>
+                                <field name="prompt_template_id"/>
+                                <field name="generation_parameters"/>
+                            </group>
+                            <group string="Prompt">
+                                <field name="prompt_content" nolabel="1"/>
+                            </group>
+                            <group string="Response">
+                                <field name="response_content" nolabel="1"/>
+                            </group>
+                        </page>
+                        <page string="Patches &amp; Commits">
+                            <group>
+                                <field name="affected_files"/>
+                                <field name="git_commit_hash"/>
+                            </group>
+                            <group string="Patch Diff">
+                                <field name="patch_diff" nolabel="1" widget="text"/>
+                            </group>
+                        </page>
+                        <page string="Errors" invisible="status != 'failed'">
+                            <field name="failure_reason" nolabel="1" class="text-danger"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_nexora_ai_audit_log_tree" model="ir.ui.view">
+        <field name="name">nexora.ai_audit_log.tree</field>
+        <field name="model">nexora.ai_audit_log</field>
+        <field name="arch" type="xml">
+            <list string="AI Audit Logs" default_order="create_date desc">
+                <field name="create_date"/>
+                <field name="builder_session_id"/>
+                <field name="generation_stage"/>
+                <field name="ai_provider"/>
+                <field name="ai_model_name"/>
+                <field name="status" widget="badge" 
+                       decoration-info="status == 'pending'" 
+                       decoration-success="status == 'approved'" 
+                       decoration-warning="status == 'modified'" 
+                       decoration-danger="status in ('rejected', 'failed')"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_ai_audit_log_search" model="ir.ui.view">
+        <field name="name">nexora.ai_audit_log.search</field>
+        <field name="model">nexora.ai_audit_log</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="builder_session_id"/>
+                <field name="generation_stage"/>
+                <field name="ai_provider"/>
+                <field name="ai_model_name"/>
+                <filter string="Pending" name="pending" domain="[('status', '=', 'pending')]"/>
+                <filter string="Failed" name="failed" domain="[('status', '=', 'failed')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nexora_ai_audit_log" model="ir.actions.act_window">
+        <field name="name">AI Audit Logs</field>
+        <field name="res_model">nexora.ai_audit_log</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_nexora_ai_audit_log_search"/>
+    </record>
+
+    <menuitem id="menu_nexora_ai_audit_log"
+              name="AI Audit Logs"
+              parent="menu_nexora_monitoring"
+              action="action_nexora_ai_audit_log"
+              sequence="20"/>
+</odoo>

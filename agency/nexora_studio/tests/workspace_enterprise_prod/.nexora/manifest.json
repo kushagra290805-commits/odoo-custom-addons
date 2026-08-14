@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-07-16T11:43:24.700291",
+  "session_uuid": "unknown",
+  "configuration_uuid": "unknown",
+  "provider": "none",
+  "file_hashes": {
+    "index.html": "f92d8d3e32e204c5b368246c48b565e987603634b593b9885aa572cb71674a15",
+    "package-lock.json": "f20ab8a018a39e6b6c044fadefb79f59e75884cdae670cfde0d5ccd98d71a4ce",
+    "package.json": "9b9d215d8a59040d6673cd5bd751a74a0ca55c05e2af908925ecbf65cfdf3f4e",
+    "preview.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "template.json": "63b29dc85fa2fa3a68280a67ad71e83c36f24e6a278b71b794d2925c96f6e7c3",
+    "vite.config.js": "feb4908db242705ecf99d3f65a49eb6513922ea6301d27047a80deb3e4fe80d0",
+    "src\\App.jsx": "28fad90dd30d6ca761cd8a08cf663a71afa23f669eb2bce5b18fecd3e33f7ef4",
+    "src\\main.jsx": "4b3769efacf74211f4e69fc629a694951f5fc2aef934311efbccf26e3efbd5e9",
+    "src\\components\\ProductCard.jsx": "8f7b725cad37124adb76bb1121dbdb0bcc55d8a754ce5b0c559c047ef325f2c7",
+    "src\\pages\\Shop.jsx": "e94eab76e0bafc5ae1043f282a64edea22a0ab2ef4f2f97498a99a8e0edd2541"
+  },
+  "dependencies": [
+    "npm"
+  ],
+  "generator_version": "1.0.0"
+}

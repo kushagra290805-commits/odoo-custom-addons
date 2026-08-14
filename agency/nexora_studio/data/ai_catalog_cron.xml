@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Daily Incremental Sync -->
+        <record id="ir_cron_sync_ai_model_catalog_daily" model="ir.cron">
+            <field name="name">Nexora: Daily Catalog Sync</field>
+            <field name="model_id" ref="model_nexora_ai_catalog_service"/>
+            <field name="state">code</field>
+            <field name="code">model.sync_catalog()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        
+        <!-- Weekly Verification (Cleanup) -->
+        <record id="ir_cron_sync_ai_model_catalog_weekly" model="ir.cron">
+            <field name="name">Nexora: Weekly Catalog Verification</field>
+            <field name="model_id" ref="model_nexora_ai_catalog_service"/>
+            <field name="state">code</field>
+            <field name="code">model.sync_catalog()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">weeks</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_nexora_mcp_connection_test_wizard_form" model="ir.ui.view">
+        <field name="name">nexora.mcp_connection_test_wizard.form</field>
+        <field name="model">nexora.mcp_connection_test_wizard</field>
+        <field name="arch" type="xml">
+            <form string="Test MCP Connection">
+                <field name="state" invisible="1"/>
+                <sheet>
+                    <div class="alert alert-info" role="alert" invisible="state == 'done'">
+                        This will launch an ephemeral instance of the MCP server to verify connectivity and discover basic capabilities. It will not affect the production runtime.
+                    </div>
+                    
+                    <group invisible="state != 'done'">
+                        <group string="Result">
+                            <field name="success" widget="boolean_toggle"/>
+                            <field name="latency_ms"/>
+                            <field name="error_message" invisible="success"/>
+                        </group>
+                        <group string="Capabilities Discovered">
+                            <field name="tool_count"/>
+                            <field name="resource_count"/>
+                            <field name="prompt_count"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_run_test" type="object" string="Run Test" class="btn-primary" invisible="state == 'done'"/>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="action_sync_selected_providers" model="ir.actions.server">
+            <field name="name">Sync Catalog</field>
+            <field name="model_id" ref="model_nexora_provider_registry"/>
+            <field name="binding_model_id" ref="model_nexora_provider_registry"/>
+            <field name="binding_view_types">list,form</field>
+            <field name="state">code</field>
+            <field name="code">
+                for record in records:
+                    env['nexora.ai_catalog_service'].sync_catalog(record.provider_id)
+            </field>
+        </record>
+        
+        <record id="action_sync_all_providers" model="ir.actions.server">
+            <field name="name">Sync All Catalogs</field>
+            <field name="model_id" ref="model_nexora_provider_registry"/>
+            <field name="binding_model_id" ref="model_nexora_provider_registry"/>
+            <field name="binding_view_types">list,form</field>
+            <field name="state">code</field>
+            <field name="code">
+                env['nexora.ai_catalog_service'].sync_catalog()
+            </field>
+        </record>
+
+        <!-- (Future: action_clear_catalog_cache could delete records or mark all as unavailable before sync) -->
+    </data>
+</odoo>

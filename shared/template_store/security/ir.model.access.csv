@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_nexora_template_frontend,nexora.template_frontend,model_nexora_template_frontend,,1,1,1,1
+access_nexora_template_backend,nexora.template_backend,model_nexora_template_backend,,1,1,1,1
+access_nexora_template_version,nexora.template_version,model_nexora_template_version,,1,1,1,1
+access_nexora_template_compatibility,nexora.template_compatibility,model_nexora_template_compatibility,,1,1,1,1
+access_nexora_template_metadata,nexora.template_metadata,model_nexora_template_metadata,,1,1,1,1
+access_nexora_generator_type,nexora.generator_type,model_nexora_generator_type,,1,1,1,1
+access_nexora_generator_capability,nexora.generator_capability,model_nexora_generator_capability,,1,1,1,1
+access_nexora_generation_pipeline,nexora.generation_pipeline,model_nexora_generation_pipeline,,1,1,1,1
+access_nexora_generation_stage,nexora.generation_stage,model_nexora_generation_stage,,1,1,1,1
+access_nexora_generation_job,nexora.generation_job,model_nexora_generation_job,,1,1,1,1
+access_nexora_generation_variable,nexora.generation_variable,model_nexora_generation_variable,,1,1,1,1
+access_nexora_generation_log,nexora.generation_log,model_nexora_generation_log,,1,1,1,1

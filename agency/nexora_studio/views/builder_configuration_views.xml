@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Builder Configuration Form View -->
+    <record id="view_nexora_builder_configuration_form" model="ir.ui.view">
+        <field name="name">nexora.builder_configuration.form</field>
+        <field name="model">nexora.builder_configuration</field>
+        <field name="arch" type="xml">
+            <form string="Builder Configuration">
+                <header>
+                    <button name="action_lock_configuration" string="Lock Configuration" type="object" class="oe_highlight"
+                            invisible="status != 'draft'" confirm="Are you sure you want to lock this configuration? It cannot be edited once locked."/>
+                    <button name="action_clone_configuration" string="Clone Configuration" type="object"
+                            invisible="status != 'locked'"/>
+                    <button name="action_archive_configuration" string="Archive Configuration" type="object"
+                            invisible="status == 'archived'" confirm="Are you sure you want to archive this configuration?"/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,locked,archived"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Configuration Name" readonly="status != 'draft'"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="semantic_version" readonly="status != 'draft'"/>
+                            <field name="environment" readonly="status != 'draft'"/>
+                            <field name="git_history_sync_limit" readonly="status != 'draft'"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="configuration_uuid"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description" placeholder="Describe the purpose of this configuration..." readonly="status != 'draft'"/>
+                        </page>
+                        <page string="Notes">
+                            <field name="notes" placeholder="Internal notes..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Builder Configuration Tree View -->
+    <record id="view_nexora_builder_configuration_tree" model="ir.ui.view">
+        <field name="name">nexora.builder_configuration.tree</field>
+        <field name="model">nexora.builder_configuration</field>
+        <field name="arch" type="xml">
+            <list string="Builder Configurations">
+                <field name="name"/>
+                <field name="semantic_version"/>
+                <field name="environment"/>
+                <field name="status" widget="badge" 
+                       decoration-info="status == 'draft'" 
+                       decoration-warning="status == 'locked'" 
+                       decoration-muted="status == 'archived'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Builder Configuration Search View -->
+    <record id="view_nexora_builder_configuration_search" model="ir.ui.view">
+        <field name="name">nexora.builder_configuration.search</field>
+        <field name="model">nexora.builder_configuration</field>
+        <field name="arch" type="xml">
+            <search string="Search Configurations">
+                <field name="name"/>
+                <field name="semantic_version"/>
+                <field name="environment"/>
+                <filter string="Draft" name="draft" domain="[('status', '=', 'draft')]"/>
+                <filter string="Locked" name="locked" domain="[('status', '=', 'locked')]"/>
+                <filter string="Archived" name="archived" domain="[('status', '=', 'archived')]"/>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- Builder Configuration Action -->
+    <record id="action_nexora_builder_configuration" model="ir.actions.act_window">
+        <field name="name">Builder Configurations</field>
+        <field name="res_model">nexora.builder_configuration</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_nexora_builder_configuration_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Builder Configuration!
+            </p>
+            <p>
+                Configurations are immutable metadata definitions of how a project should be built.
+            </p>
+        </field>
+    </record>
+</odoo>

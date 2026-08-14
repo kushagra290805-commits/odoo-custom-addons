@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="nexora_studio.Dashboard" owl="1">
+        <div class="o_action">
+            <div class="text-center" style="margin-top: 100px; margin-bottom: 100px;">
+                <h1 style="font-size: 4rem; color: #875A7B;">Nexora Studio</h1>
+                <h3 class="text-muted">Enterprise Digital Service Agency Operating System</h3>
+            </div>
+        </div>
+    </t>
+</templates>

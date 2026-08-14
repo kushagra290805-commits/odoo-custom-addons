@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Users View for Nexora Administration -->
+        <record id="view_nexora_users_tree" model="ir.ui.view">
+            <field name="name">nexora.users.tree</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <list string="Users">
+                    <field name="name"/>
+                    <field name="login" string="Username"/>
+                    <field name="is_nexora_user" invisible="1"/>
+                    <field name="nexora_last_login"/>
+                    <field name="must_change_password"/>
+                    <field name="account_locked"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_nexora_users_form" model="ir.ui.view">
+            <field name="name">nexora.users.form</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_form"/>
+            <field name="arch" type="xml">
+                <notebook position="inside">
+                    <page string="Nexora Studio" invisible="not is_nexora_user">
+                        <group>
+                            <field name="is_nexora_user"/>
+                            <field name="nexora_last_login"/>
+                            <field name="must_change_password"/>
+                            <field name="account_locked"/>
+                            <field name="failed_login_count"/>
+                        </group>
+                    </page>
+                </notebook>
+            </field>
+        </record>
+
+        <record id="action_nexora_users" model="ir.actions.act_window">
+            <field name="name">Users</field>
+            <field name="res_model">res.users</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[('is_nexora_user', '=', True)]</field>
+            <field name="context">{'default_is_nexora_user': True}</field>
+            <field name="view_id" ref="view_nexora_users_tree"/>
+        </record>
+
+        <!-- Sessions View -->
+        <record id="view_nexora_auth_session_tree" model="ir.ui.view">
+            <field name="name">nexora.auth.session.tree</field>
+            <field name="model">nexora.auth.session</field>
+            <field name="arch" type="xml">
+                <list string="Sessions" decoration-danger="status == 'forced_logout'">
+                    <field name="user_id"/>
+                    <field name="session_id"/>
+                    <field name="ip_address"/>
+                    <field name="browser"/>
+                    <field name="create_date"/>
+                    <field name="last_activity"/>
+                    <field name="status"/>
+                    <button name="action_force_logout" type="object" string="Force Logout" class="btn-danger" invisible="status != 'active'"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="action_nexora_sessions" model="ir.actions.act_window">
+            <field name="name">Active Sessions</field>
+            <field name="res_model">nexora.auth.session</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <!-- Audit Log View -->
+        <record id="view_nexora_audit_log_tree" model="ir.ui.view">
+            <field name="name">nexora.audit.log.tree</field>
+            <field name="model">nexora.audit.log</field>
+            <field name="arch" type="xml">
+                <list string="Audit Logs" create="false" edit="false" delete="false">
+                    <field name="create_date"/>
+                    <field name="user_id"/>
+                    <field name="action"/>
+                    <field name="ip_address"/>
+                    <field name="result"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="action_nexora_audit_logs" model="ir.actions.act_window">
+            <field name="name">Audit Logs</field>
+            <field name="res_model">nexora.audit.log</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <!-- Menus -->
+        <menuitem id="menu_nexora_auth_root" name="Identity &amp; Auth" parent="menu_nexora_root" sequence="90" groups="nexora_studio.group_nexora_admin"/>
+        
+        <menuitem id="menu_nexora_auth_users" name="Users" parent="menu_nexora_auth_root" action="action_nexora_users" sequence="10"/>
+        <menuitem id="menu_nexora_auth_sessions" name="Sessions" parent="menu_nexora_auth_root" action="action_nexora_sessions" sequence="20"/>
+        <menuitem id="menu_nexora_auth_audit" name="Audit Logs" parent="menu_nexora_auth_root" action="action_nexora_audit_logs" sequence="30"/>
+
+    </data>
+</odoo>

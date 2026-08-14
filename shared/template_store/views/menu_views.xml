@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Top-level Root Menu for Template Store -->
+    <menuitem id="menu_template_store_root"
+              name="Template Store"
+              web_icon="base,static/description/settings.png"
+              sequence="35"/>
+
+    <!-- Submenu Category 1: Template Registry & Catalog -->
+    <menuitem id="menu_template_store_templates"
+              name="Templates &amp; Catalog"
+              parent="menu_template_store_root"
+              sequence="10"/>
+
+    <!-- Submenu Category 2: Generation Engine & Pipelines -->
+    <menuitem id="menu_template_store_generation"
+              name="Generation Engine"
+              parent="menu_template_store_root"
+              sequence="20"/>
+</odoo>

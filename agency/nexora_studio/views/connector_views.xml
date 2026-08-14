@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================
+         NEXORA CONNECTOR PLATFORM VIEWS
+         Phase 26 — Universal Connector Platform Foundation
+    ============================================================ -->
+
+    <!-- ─────────────────────────────────────────────────────────
+         Connector Type Views
+    ───────────────────────────────────────────────────────────── -->
+    <record id="view_nexora_connector_type_list" model="ir.ui.view">
+        <field name="name">nexora.connector_type.list</field>
+        <field name="model">nexora.connector_type</field>
+        <field name="arch" type="xml">
+            <list string="Connector Types">
+                <field name="type_code"/>
+                <field name="name"/>
+                <field name="lifecycle_policy"/>
+                <field name="supports_health_check"/>
+                <field name="requires_session"/>
+                <field name="is_remotely_installable"/>
+                <field name="is_builtin"/>
+                <field name="connector_count"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_connector_type_form" model="ir.ui.view">
+        <field name="name">nexora.connector_type.form</field>
+        <field name="model">nexora.connector_type</field>
+        <field name="arch" type="xml">
+            <form string="Connector Type">
+                <header/>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Identity">
+                            <field name="type_code"/>
+                            <field name="icon"/>
+                            <field name="is_builtin"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Capabilities">
+                            <field name="lifecycle_policy"/>
+                            <field name="supports_health_check"/>
+                            <field name="supports_multiple_instances"/>
+                            <field name="requires_session"/>
+                            <field name="is_remotely_installable"/>
+                            <field name="supports_hot_reload"/>
+                        </group>
+                    </group>
+                    <group string="Description">
+                        <field name="description" nolabel="1"/>
+                    </group>
+                    <group string="Credential Requirements">
+                        <field name="required_credential_types" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nexora_connector_type" model="ir.actions.act_window">
+        <field name="name">Connector Types</field>
+        <field name="res_model">nexora.connector_type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ─────────────────────────────────────────────────────────
+         Connector Views
+    ───────────────────────────────────────────────────────────── -->
+    <record id="view_nexora_connector_list" model="ir.ui.view">
+        <field name="name">nexora.connector.list</field>
+        <field name="model">nexora.connector</field>
+        <field name="arch" type="xml">
+            <list string="Connectors" decoration-success="state == 'running'" decoration-warning="state in ('paused','degraded')" decoration-danger="state == 'failed'" decoration-muted="state in ('disabled','removed')">
+                <field name="name"/>
+                <field name="connector_id"/>
+                <field name="connector_type_id"/>
+                <field name="version"/>
+                <field name="state" widget="badge" decoration-success="state == 'running'" decoration-info="state in ('healthy','validated','authenticated')" decoration-warning="state == 'paused'" decoration-danger="state == 'failed'"/>
+                <field name="health_status" widget="badge" decoration-success="health_status == 'healthy'" decoration-warning="health_status == 'degraded'" decoration-danger="health_status == 'failed'"/>
+                <field name="last_health_check"/>
+                <field name="enabled"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_connector_form" model="ir.ui.view">
+        <field name="name">nexora.connector.form</field>
+        <field name="model">nexora.connector</field>
+        <field name="arch" type="xml">
+            <form string="Connector">
+                <header>
+                    <button name="action_enable" string="Enable" type="object" class="btn-primary" invisible="state in ('running','removed')"/>
+                    <button name="action_disable" string="Disable" type="object" invisible="state in ('disabled','removed','registered','discovered','downloaded','installed')"/>
+                    <button name="action_remove" string="Remove" type="object" class="btn-danger" invisible="state not in ('disabled','failed')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="registered,installed,configured,authenticated,validated,healthy,running"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                        <h2><field name="connector_id" readonly="1"/></h2>
+                    </div>
+                    <group>
+                        <group string="Identity">
+                            <field name="connector_type_id"/>
+                            <field name="version"/>
+                            <field name="author"/>
+                            <field name="health_status" widget="badge" decoration-success="health_status == 'healthy'" decoration-warning="health_status == 'degraded'" decoration-danger="health_status == 'failed'"/>
+                            <field name="last_health_check"/>
+                        </group>
+                        <group string="Links">
+                            <field name="homepage_url" widget="url"/>
+                            <field name="documentation_url" widget="url"/>
+                            <field name="tags"/>
+                            <field name="registered_at" readonly="1"/>
+                            <field name="installed_at" readonly="1"/>
+                        </group>
+                    </group>
+                    <group invisible="not error_message">
+                        <field name="error_message" readonly="1" widget="text"/>
+                    </group>
+                    <group string="Description">
+                        <field name="description" nolabel="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Capabilities">
+                            <field name="capability_ids">
+                                <list editable="bottom">
+                                    <field name="capability_definition_id"/>
+                                    <field name="priority"/>
+                                    <field name="estimated_latency_ms"/>
+                                    <field name="estimated_cost_usd"/>
+                                    <field name="enabled"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="MCP Server" invisible="not connector_type_id">
+                            <div class="mb-3">
+                                <button name="action_test_mcp_connection" string="Test Connection" type="object" class="btn-secondary"/>
+                                <button name="action_discover_mcp_capabilities" string="Discover Capabilities" type="object" class="btn-secondary" invisible="state != 'running'"/>
+                            </div>
+                            <group string="Process Execution">
+                                <field name="mcp_server_config_ids" nolabel="1">
+                                    <list>
+                                        <field name="command"/>
+                                        <field name="args_json"/>
+                                        <field name="startup_policy"/>
+                                        <field name="timeout_seconds"/>
+                                    </list>
+                                </field>
+                            </group>
+                            <separator string="Credentials"/>
+                            <field name="mcp_credential_ids"/>
+                            <separator string="Discovered Capabilities"/>
+                            <field name="mcp_discovered_tool_ids" readonly="1"/>
+                        </page>
+                        <page string="Configuration">
+                            <field name="configuration_ids">
+                                <list editable="bottom">
+                                    <field name="schema_json"/>
+                                    <field name="default_values_json"/>
+                                    <field name="user_overrides_json"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Dependencies">
+                            <field name="dependency_ids">
+                                <list editable="bottom">
+                                    <field name="depends_on_connector_id"/>
+                                    <field name="dependency_type"/>
+                                    <field name="version_constraint"/>
+                                    <field name="description"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Health">
+                            <field name="health_ids" readonly="1">
+                                <list>
+                                    <field name="last_checked"/>
+                                    <field name="status" widget="badge" decoration-success="status == 'healthy'" decoration-warning="status == 'degraded'" decoration-danger="status == 'failed'"/>
+                                    <field name="latency_ms"/>
+                                    <field name="consecutive_failures"/>
+                                    <field name="error_detail"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Events">
+                            <field name="event_ids" readonly="1">
+                                <list>
+                                    <field name="occurred_at"/>
+                                    <field name="event_type"/>
+                                    <field name="severity" widget="badge" decoration-info="severity == 'info'" decoration-warning="severity == 'warning'" decoration-danger="severity in ('error','critical')"/>
+                                    <field name="message"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Diagnostics">
+                            <field name="diagnostic_ids" readonly="1">
+                                <list>
+                                    <field name="run_at"/>
+                                    <field name="diagnostic_type"/>
+                                    <field name="passed" widget="boolean"/>
+                                    <field name="duration_ms"/>
+                                    <field name="error"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Manifest">
+                            <field name="manifest_json" widget="code" options="{'mode': 'json'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_nexora_connector_search" model="ir.ui.view">
+        <field name="name">nexora.connector.search</field>
+        <field name="model">nexora.connector</field>
+        <field name="arch" type="xml">
+            <search string="Search Connectors">
+                <field name="name"/>
+                <field name="connector_id"/>
+                <field name="connector_type_id"/>
+                <separator/>
+                <filter string="Running" name="running" domain="[('state','=','running')]"/>
+                <filter string="Healthy" name="healthy" domain="[('health_status','=','healthy')]"/>
+                <filter string="Failed" name="failed" domain="[('state','=','failed')]"/>
+                <filter string="Disabled" name="disabled" domain="[('state','=','disabled')]"/>
+                <separator/>
+                <group name="group_by">
+                    <filter string="Type" name="group_type" context="{'group_by': 'connector_type_id'}"/>
+                    <filter string="State" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Health" name="group_health" context="{'group_by': 'health_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nexora_connector" model="ir.actions.act_window">
+        <field name="name">Connectors</field>
+        <field name="res_model">nexora.connector</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_nexora_connector_search"/>
+        <field name="context">{'search_default_running': 1}</field>
+    </record>
+
+
+
+
+
+    <!-- ─────────────────────────────────────────────────────────
+         Menu Structure — Connectors
+    ───────────────────────────────────────────────────────────── -->
+    <menuitem id="menu_nexora_connectors"
+              name="Connectors"
+              parent="menu_nexora_root"
+              sequence="25"/>
+
+    <menuitem id="menu_nexora_connector_list"
+              name="All Connectors"
+              parent="menu_nexora_connectors"
+              action="action_nexora_connector"
+              sequence="10"/>
+
+
+
+    <menuitem id="menu_nexora_connector_types"
+              name="Connector Types"
+              parent="menu_nexora_connectors"
+              action="action_nexora_connector_type"
+              sequence="40"/>
+
+</odoo>

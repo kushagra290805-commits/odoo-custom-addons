@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Categories -->
+        <record id="cat_core" model="nexora.category">
+            <field name="name">Core</field>
+            <field name="technical_key">core</field>
+        </record>
+        <record id="cat_builder" model="nexora.category">
+            <field name="name">Builder</field>
+            <field name="technical_key">builder</field>
+        </record>
+        <record id="cat_deployment" model="nexora.category">
+            <field name="name">Deployment</field>
+            <field name="technical_key">deployment</field>
+        </record>
+        <record id="cat_templates" model="nexora.category">
+            <field name="name">Templates</field>
+            <field name="technical_key">templates</field>
+        </record>
+        <record id="cat_ai" model="nexora.category">
+            <field name="name">AI</field>
+            <field name="technical_key">ai</field>
+        </record>
+        <record id="cat_integrations" model="nexora.category">
+            <field name="name">Integrations</field>
+            <field name="technical_key">integrations</field>
+        </record>
+        <record id="cat_analytics" model="nexora.category">
+            <field name="name">Analytics</field>
+            <field name="technical_key">analytics</field>
+        </record>
+
+        <!-- Component -->
+        <record id="comp_nexora_studio" model="nexora.component">
+            <field name="name">Nexora Studio</field>
+            <field name="technical_name">nexora_studio</field>
+            <field name="semantic_version">1.0.0</field>
+        </record>
+
+        <!-- Capability -->
+        <record id="cap_platform_core" model="nexora.capability">
+            <field name="name">Platform Core</field>
+            <field name="technical_key">platform_core</field>
+            <field name="category_id" ref="cat_core"/>
+        </record>
+
+        <!-- Navigation -->
+        <record id="nav_dashboard" model="nexora.navigation">
+            <field name="name">Dashboard</field>
+            <field name="technical_key">dashboard</field>
+            <field name="action_xmlid">nexora_studio.action_nexora_studio_dashboard_client</field>
+        </record>
+
+        <!-- Service -->
+        <record id="srv_platform_registry" model="nexora.service">
+            <field name="name">Platform Registry</field>
+            <field name="technical_key">platform_registry</field>
+            <field name="service_type">local</field>
+        </record>
+        
+        <!-- Runtime Capabilities -->
+        <record id="cap_runtime_workspace" model="nexora.runtime_capability">
+            <field name="name">Workspace Runtime</field>
+            <field name="runtime_type">workspace</field>
+            <field name="plugin_service">nexora.workspace_service</field>
+            <field name="startup_priority">10</field>
+        </record>
+        
+        <record id="cap_runtime_git" model="nexora.runtime_capability">
+            <field name="name">Git Runtime</field>
+            <field name="runtime_type">git</field>
+            <field name="plugin_service">nexora.git_service</field>
+            <field name="startup_priority">20</field>
+            <field name="dependency_ids" eval="[(6, 0, [ref('cap_runtime_workspace')])]"/>
+        </record>
+        
+        <record id="cap_runtime_ide" model="nexora.runtime_capability">
+            <field name="name">IDE Integration</field>
+            <field name="runtime_type">ide</field>
+            <field name="plugin_service">nexora.ide_service</field>
+            <field name="startup_priority">30</field>
+            <field name="dependency_ids" eval="[(6, 0, [ref('cap_runtime_git')])]"/>
+        </record>
+
+        <record id="cap_runtime_mcp" model="nexora.runtime_capability">
+            <field name="name">MCP Runtime</field>
+            <field name="runtime_type">mcp</field>
+            <field name="plugin_service">nexora.mcp_service</field>
+            <field name="startup_priority">40</field>
+            <field name="dependency_ids" eval="[(6, 0, [ref('cap_runtime_ide')])]"/>
+        </record>
+
+        <record id="cap_runtime_preview" model="nexora.runtime_capability">
+            <field name="name">Preview Runtime</field>
+            <field name="runtime_type">preview</field>
+            <field name="plugin_service">nexora.preview_service</field>
+            <field name="startup_priority">50</field>
+            <field name="dependency_ids" eval="[(6, 0, [ref('cap_runtime_mcp')])]"/>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_nexora_runtime_event_form" model="ir.ui.view">
+        <field name="name">nexora.runtime_event.form</field>
+        <field name="model">nexora.runtime_event</field>
+        <field name="arch" type="xml">
+            <form string="Runtime Event">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="timestamp"/>
+                            <field name="event_type"/>
+                            <field name="runtime_type"/>
+                        </group>
+                        <group>
+                            <field name="generation_job_id"/>
+                            <field name="builder_session_id"/>
+                            <field name="runtime_id"/>
+                        </group>
+                    </group>
+                    <group string="Message">
+                        <field name="message" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_nexora_runtime_event_tree" model="ir.ui.view">
+        <field name="name">nexora.runtime_event.tree</field>
+        <field name="model">nexora.runtime_event</field>
+        <field name="arch" type="xml">
+            <list string="Runtime Events" default_order="timestamp desc">
+                <field name="timestamp"/>
+                <field name="event_type" widget="badge"/>
+                <field name="runtime_type"/>
+                <field name="builder_session_id"/>
+                <field name="message"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_runtime_event_search" model="ir.ui.view">
+        <field name="name">nexora.runtime_event.search</field>
+        <field name="model">nexora.runtime_event</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="builder_session_id"/>
+                <field name="event_type"/>
+                <field name="runtime_type"/>
+                <field name="generation_job_id"/>
+                <filter string="Failures" name="failures" domain="[('event_type', 'like', 'FAILED')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nexora_runtime_event" model="ir.actions.act_window">
+        <field name="name">Runtime Events</field>
+        <field name="res_model">nexora.runtime_event</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_nexora_runtime_event_search"/>
+    </record>
+
+    <menuitem id="menu_nexora_runtime_event"
+              name="Runtime Events"
+              parent="menu_nexora_monitoring"
+              action="action_nexora_runtime_event"
+              sequence="30"/>
+</odoo>

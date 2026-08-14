@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Generation Job List View -->
+    <record id="view_generation_job_list" model="ir.ui.view">
+        <field name="name">nexora.generation_job.list</field>
+        <field name="model">nexora.generation_job</field>
+        <field name="arch" type="xml">
+            <list string="Generation Jobs" decoration-info="status == 'draft'" decoration-success="status == 'completed'" decoration-danger="status == 'failed'" decoration-warning="status == 'rolled_back'">
+                <field name="name"/>
+                <field name="job_uuid"/>
+                <field name="pipeline_id"/>
+                <field name="generator_type_id"/>
+                <field name="target_workspace_path"/>
+                <field name="start_time"/>
+                <field name="current_stage_id" optional="show"/>
+                <field name="progress" widget="progressbar"/>
+                <field name="status" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Generation Job Form View -->
+    <record id="view_generation_job_form" model="ir.ui.view">
+        <field name="name">nexora.generation_job.form</field>
+        <field name="model">nexora.generation_job</field>
+        <field name="arch" type="xml">
+            <form string="Generation Job">
+                <header>
+                    <button name="action_start_generation"
+                            string="Start Generation"
+                            type="object"
+                            class="oe_highlight"
+                            invisible="status not in ('draft', 'failed', 'rolled_back', 'paused', 'cancelled')"/>
+                    <button name="action_rollback"
+                            string="Rollback Job"
+                            type="object"
+                            class="btn-warning"
+                            invisible="status in ('draft', 'rolled_back', 'queued', 'completed')"/>
+                    <button name="action_reset_draft"
+                            string="Reset to Draft"
+                            type="object"
+                            invisible="status == 'draft'"/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,queued,running,completed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="job_uuid" readonly="1"/>
+                            <field name="current_stage_id" readonly="1"/>
+                            <field name="progress" widget="progressbar" readonly="1"/>
+                            <field name="pipeline_id" readonly="status != 'draft'"/>
+                            <field name="generator_type_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="target_workspace_path" readonly="status != 'draft'"/>
+                            <field name="frontend_template_id" readonly="status != 'draft'"/>
+                            <field name="backend_template_id" readonly="status != 'draft'"/>
+                            <field name="template_frontend_ref" readonly="status != 'draft'"/>
+                            <field name="template_backend_ref" readonly="status != 'draft'"/>
+                        </group>
+                    </group>
+                    <group string="Execution Summary" invisible="status == 'draft'">
+                        <group>
+                            <field name="start_time" readonly="1"/>
+                            <field name="end_time" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="error_message" readonly="1" invisible="not error_message"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Substitution Variables" name="variables">
+                            <field name="variable_ids" readonly="status != 'draft'">
+                                <list editable="bottom">
+                                    <field name="key"/>
+                                    <field name="value"/>
+                                    <field name="variable_type"/>
+                                    <field name="is_required"/>
+                                    <field name="description"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Execution Logs" name="logs">
+                            <field name="log_ids" readonly="1">
+                                <list decoration-danger="level == 'error'" decoration-warning="level == 'warning'" decoration-info="level == 'debug'">
+                                    <field name="timestamp"/>
+                                    <field name="level" widget="badge"/>
+                                    <field name="stage_id"/>
+                                    <field name="message"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Metadata JSON" name="metadata">
+                            <field name="metadata_json" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Generation Job Search View -->
+    <record id="view_generation_job_search" model="ir.ui.view">
+        <field name="name">nexora.generation_job.search</field>
+        <field name="model">nexora.generation_job</field>
+        <field name="arch" type="xml">
+            <search string="Search Generation Jobs">
+                <field name="name"/>
+                <field name="job_uuid"/>
+                <field name="pipeline_id"/>
+                <filter string="Draft" name="draft" domain="[('status', '=', 'draft')]"/>
+                <filter string="Completed" name="completed" domain="[('status', '=', 'completed')]"/>
+                <filter string="Failed" name="failed" domain="[('status', '=', 'failed')]"/>
+                <separator/>
+                <filter string="Group By Pipeline" name="group_by_pipeline" context="{'group_by': 'pipeline_id'}"/>
+                <filter string="Group By Status" name="group_by_status" context="{'group_by': 'status'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_generation_job" model="ir.actions.act_window">
+        <field name="name">Generation Jobs</field>
+        <field name="res_model">nexora.generation_job</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_generation_job_search"/>
+    </record>
+
+    <!-- Menu item integrated into Template Store Generation Engine category -->
+    <menuitem id="menu_generation_jobs"
+              name="Generation Jobs"
+              parent="menu_template_store_generation"
+              action="action_generation_job"
+              sequence="10"/>
+</odoo>

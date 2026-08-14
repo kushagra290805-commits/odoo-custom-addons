@@ -1,0 +1,279 @@
+# Complete Public Surface Audit
+
+**Workstream: New Mandatory Report**
+
+## Executive Summary
+An exhaustive audit of every exported symbol (classes, methods, dataclasses) under services/connector/ was executed. All symbols are explicitly designed as the public API surface of the Universal Connector Platform.
+
+**Status:** PASS
+**Accidental APIs Found:** 0
+
+## Exported Public Symbols
+`
+File: credentials\interfaces.py
+  class CredentialValidationResult
+  class ValidationResult
+  class AuthenticationResult
+  class SecretsProvider
+    method SecretsProvider.get_secret
+    method SecretsProvider.set_secret
+    method SecretsProvider.delete_secret
+    method SecretsProvider.list_keys
+    method SecretsProvider.has_secret
+  class CredentialResolver
+    method CredentialResolver.resolve
+    method CredentialResolver.validate
+  class ConfigurationProvider
+    method ConfigurationProvider.get_configuration
+    method ConfigurationProvider.update_configuration
+    method ConfigurationProvider.get_schema
+    method ConfigurationProvider.validate_configuration
+  class AuthenticationProvider
+    method AuthenticationProvider.authenticate
+    method AuthenticationProvider.refresh
+    method AuthenticationProvider.revoke
+    method AuthenticationProvider.validate_session
+File: domain\connector_types.py
+  class LifecyclePolicy
+  class ConnectorTypeDescriptor
+File: domain\models.py
+  class ConnectorLifecycleState
+  class ConnectorHealthStatus
+  class ConnectorEventSeverity
+  class ConnectorExecutionStatus
+  class CredentialType
+  class ConnectorDependencyType
+  class ConnectorSourceType
+  class ConnectorEnvironmentType
+  class ConnectorSource
+  class ConnectorCatalogEntry
+  class CapabilityDefinition
+  class ConnectorCapabilityImplementation
+  class ConnectorCredentialReference
+  class ConnectorDependency
+  class ConnectorManifest
+  class ConnectorRelease
+  class ConnectorEnvironment
+  class ConnectorHealth
+    method ConnectorHealth.is_healthy
+    method ConnectorHealth.is_degraded
+    method ConnectorHealth.record_success
+    method ConnectorHealth.record_failure
+  class ConnectorConfiguration
+    method ConnectorConfiguration.get_resolved_values
+  class ConnectorInstallation
+  class ConnectorSession
+    method ConnectorSession.is_expired
+    method ConnectorSession.requires_refresh
+  class ConnectorRuntimeContext
+  class ConnectorExecutionRequest
+  class ConnectorExecutionResult
+    method ConnectorExecutionResult.success
+    method ConnectorExecutionResult.ok
+    method ConnectorExecutionResult.fail
+    method ConnectorExecutionResult.timeout
+  class ConnectorEvent
+  class Connector
+    method Connector.connector_id
+    method Connector.is_running
+    method Connector.is_healthy
+    method Connector.has_valid_session
+    method Connector.get_capabilities
+    method Connector.get_capability
+File: domain\type_registry.py
+  class ConnectorTypeRegistry
+    method ConnectorTypeRegistry.register
+    method ConnectorTypeRegistry.resolve
+    method ConnectorTypeRegistry.get
+    method ConnectorTypeRegistry.is_registered
+    method ConnectorTypeRegistry.list_all
+    method ConnectorTypeRegistry.list_type_ids
+File: events\bus.py
+  class EventSubscriber
+    method EventSubscriber.handle_event
+  class ConnectorEventBus
+    method ConnectorEventBus.subscribe
+    method ConnectorEventBus.unsubscribe
+    method ConnectorEventBus.on
+    method ConnectorEventBus.publish
+File: factory\connector_factory.py
+  class ConnectorFactory
+    method ConnectorFactory.register_connector_type
+    method ConnectorFactory.create_connector
+File: factory\provider_factory.py
+  class ProviderFactory
+    method ProviderFactory.register_capability_provider
+    method ProviderFactory.register_config_provider
+    method ProviderFactory.register_auth_provider
+    method ProviderFactory.register_health_provider
+    method ProviderFactory.create_capability_provider
+    method ProviderFactory.create_config_provider
+    method ProviderFactory.create_auth_provider
+    method ProviderFactory.create_health_provider
+File: factory\transport_factory.py
+  class TransportFactory
+    method TransportFactory.register_transport
+    method TransportFactory.create_transport
+File: integration\bootstrap.py
+  class ConnectorPlatformBootstrap
+    method ConnectorPlatformBootstrap.get_instance
+    method ConnectorPlatformBootstrap.reset
+    method ConnectorPlatformBootstrap.bootstrap
+    method ConnectorPlatformBootstrap.shutdown
+    method ConnectorPlatformBootstrap.connector_runtime
+    method ConnectorPlatformBootstrap.is_bootstrapped
+File: integration\connector_executor.py
+  class ConnectorExecutionTarget
+    method ConnectorExecutionTarget.execute
+    method ConnectorExecutionTarget.set_connector_runtime
+  class ExecutionTarget
+    method ExecutionTarget.execute
+  class CapabilityResult
+File: integration\runtime_bridge.py
+  class NullConfigurationAdapter
+    method NullConfigurationAdapter.get
+    method NullConfigurationAdapter.get_secret
+    method NullConfigurationAdapter.has_secret
+    method NullConfigurationAdapter.is_real
+  class ConnectorRuntimeBridge
+    method ConnectorRuntimeBridge.wire
+File: lifecycle\lifecycle_manager.py
+  class ConnectorLifecycleManager
+    method ConnectorLifecycleManager.transition
+    method ConnectorLifecycleManager.register_transition_hook
+    method ConnectorLifecycleManager.get_allowed_transitions
+    method ConnectorLifecycleManager.get_forward_path
+File: lifecycle\transitions.py
+  class TransitionResult
+    method TransitionResult.ok
+    method TransitionResult.fail
+  class ConnectorLifecycleStateMachine
+    method ConnectorLifecycleStateMachine.can_transition
+    method ConnectorLifecycleStateMachine.get_allowed_transitions
+    method ConnectorLifecycleStateMachine.validate_transition
+    method ConnectorLifecycleStateMachine.apply_transition
+    method ConnectorLifecycleStateMachine.get_forward_path
+File: registry\capability_index.py
+  class ConnectorCapabilityIndex
+    method ConnectorCapabilityIndex.add
+    method ConnectorCapabilityIndex.remove
+    method ConnectorCapabilityIndex.rebuild
+    method ConnectorCapabilityIndex.clear
+    method ConnectorCapabilityIndex.get_primary
+    method ConnectorCapabilityIndex.get_all
+    method ConnectorCapabilityIndex.has_capability
+    method ConnectorCapabilityIndex.list_namespaces
+    method ConnectorCapabilityIndex.count
+File: registry\connector_registry.py
+  class ConnectorRegistry
+    method ConnectorRegistry.register
+    method ConnectorRegistry.unregister
+    method ConnectorRegistry.get
+    method ConnectorRegistry.get_all
+    method ConnectorRegistry.get_by_state
+    method ConnectorRegistry.get_running
+    method ConnectorRegistry.get_by_type
+    method ConnectorRegistry.find_for_capability
+    method ConnectorRegistry.find_all_for_capability
+    method ConnectorRegistry.update_state
+    method ConnectorRegistry.count
+    method ConnectorRegistry.count_by_state
+    method ConnectorRegistry.get_capability_namespaces
+    method ConnectorRegistry.is_registered
+    method ConnectorRegistry.sync_from_odoo
+    method ConnectorRegistry.persist_to_odoo
+File: registry\persistence\adapter.py
+  class ConnectorPersistenceAdapter
+    method ConnectorPersistenceAdapter.read_connector_record
+    method ConnectorPersistenceAdapter.write_connector_record
+    method ConnectorPersistenceAdapter.fetch_all_connectors
+    method ConnectorPersistenceAdapter.delete_connector_record
+File: registry\persistence\odoo_adapter.py
+  class OdooConnectorPersistenceAdapter
+    method OdooConnectorPersistenceAdapter.read_connector_record
+    method OdooConnectorPersistenceAdapter.write_connector_record
+    method OdooConnectorPersistenceAdapter.fetch_all_connectors
+    method OdooConnectorPersistenceAdapter.delete_connector_record
+File: registry\persistence\port.py
+  class ConnectorPersistencePort
+    method ConnectorPersistencePort.save_connector
+    method ConnectorPersistencePort.get_connector
+    method ConnectorPersistencePort.load_all_connectors
+    method ConnectorPersistencePort.save_manifest
+    method ConnectorPersistencePort.delete_connector
+File: registry\persistence\service.py
+  class ConnectorPersistenceService
+    method ConnectorPersistenceService.save_connector
+    method ConnectorPersistenceService.get_connector
+    method ConnectorPersistenceService.load_all_connectors
+    method ConnectorPersistenceService.save_manifest
+    method ConnectorPersistenceService.delete_connector
+File: runtime\connector_runtime.py
+  class ConnectorRuntime
+    method ConnectorRuntime.startup
+    method ConnectorRuntime.shutdown
+    method ConnectorRuntime.resolve_capability
+    method ConnectorRuntime.can_handle
+    method ConnectorRuntime.list_available_namespaces
+    method ConnectorRuntime.dispatch
+    method ConnectorRuntime.register_connector
+    method ConnectorRuntime.transition_connector
+    method ConnectorRuntime.record_health_success
+    method ConnectorRuntime.record_health_failure
+    method ConnectorRuntime.get_health_summary
+    method ConnectorRuntime.resolve_dependencies
+    method ConnectorRuntime.handle_event
+    method ConnectorRuntime.is_initialized
+File: runtime\dependency_resolver.py
+  class DependencyResolutionResult
+  class ConnectorDependencyResolver
+    method ConnectorDependencyResolver.resolve
+    method ConnectorDependencyResolver.check_version_constraint
+File: runtime\dispatcher.py
+  class ConnectorDispatcher
+    method ConnectorDispatcher.dispatch
+File: runtime\health_monitor.py
+  class ConnectorHealthMonitor
+    method ConnectorHealthMonitor.record_success
+    method ConnectorHealthMonitor.record_failure
+    method ConnectorHealthMonitor.get_health
+    method ConnectorHealthMonitor.is_healthy
+    method ConnectorHealthMonitor.get_unhealthy_connectors
+File: sdk\authentication.py
+  class BaseAuthenticationProvider
+    method BaseAuthenticationProvider.authenticate
+    method BaseAuthenticationProvider.refresh_session
+    method BaseAuthenticationProvider.revoke_session
+File: sdk\base.py
+  class BaseConnector
+    method BaseConnector.initialize
+    method BaseConnector.shutdown
+    method BaseConnector.check_health
+    method BaseConnector.execute
+File: sdk\capability.py
+  class BaseCapabilityProvider
+    method BaseCapabilityProvider.list_capabilities
+    method BaseCapabilityProvider.has_capability
+    method BaseCapabilityProvider.execute_capability
+File: sdk\configuration.py
+  class BaseConfigurationProvider
+    method BaseConfigurationProvider.validate_configuration
+    method BaseConfigurationProvider.resolve_configuration
+File: sdk\context.py
+  class ExecutionContext
+File: sdk\exceptions.py
+  class ConnectorError
+  class ConnectorConfigurationError
+  class ConnectorExecutionError
+  class ConnectorAuthenticationError
+  class ConnectorTimeoutError
+File: sdk\health.py
+  class BaseHealthProvider
+    method BaseHealthProvider.check_health
+    method BaseHealthProvider.get_diagnostics
+File: sdk\transport.py
+  class BaseTransport
+    method BaseTransport.connect
+    method BaseTransport.disconnect
+    method BaseTransport.send_request
+`

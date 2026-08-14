@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Workspace Form View -->
+    <record id="view_nexora_workspace_form" model="ir.ui.view">
+        <field name="name">nexora.workspace.form</field>
+        <field name="model">nexora.workspace</field>
+        <field name="arch" type="xml">
+            <form string="Workspace">
+                <header>
+                    <button name="action_initialize_workspace" string="Initialize Workspace" type="object" class="oe_highlight"
+                            invisible="initialized_at != False"/>
+                    <button name="action_reset_workspace" string="Reset Workspace" type="object"
+                            invisible="initialized_at == False" confirm="Are you sure you want to reset the workspace? All local files will be lost."/>
+                    <button name="action_delete_workspace" string="Delete Workspace" type="object"
+                            invisible="initialized_at == False" confirm="Are you sure you want to delete the physical workspace?"/>
+                    <button name="action_rename_workspace_folder" string="Rename Workspace Folder" type="object"
+                            invisible="initialized_at == False"/>
+                    <field name="status" widget="statusbar" statusbar_visible="missing,initializing,ready,busy,error"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Workspace Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="workspace_slug"/>
+                            <field name="workspace_uuid"/>
+                            <field name="workspace_path"/>
+                            <field name="initialized_at"/>
+                            <field name="health" widget="badge"
+                                   decoration-success="health == 'healthy'"
+                                   decoration-warning="health == 'partial'"
+                                   decoration-danger="health == 'missing'"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="size_bytes"/>
+                            <field name="last_scan"/>
+                            <field name="last_activity"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Workspace Tree View -->
+    <record id="view_nexora_workspace_tree" model="ir.ui.view">
+        <field name="name">nexora.workspace.tree</field>
+        <field name="model">nexora.workspace</field>
+        <field name="arch" type="xml">
+            <list string="Workspaces">
+                <field name="name"/>
+                <field name="status" widget="badge" 
+                       decoration-info="status == 'missing'" 
+                       decoration-warning="status in ('initializing', 'busy')" 
+                       decoration-success="status == 'ready'" 
+                       decoration-danger="status == 'error'"/>
+                <field name="health" widget="badge"
+                       decoration-success="health == 'healthy'"
+                       decoration-warning="health == 'partial'"
+                       decoration-danger="health == 'missing'"/>
+                <field name="workspace_path"/>
+                <field name="size_bytes"/>
+                <field name="last_activity"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Workspace Search View -->
+    <record id="view_nexora_workspace_search" model="ir.ui.view">
+        <field name="name">nexora.workspace.search</field>
+        <field name="model">nexora.workspace</field>
+        <field name="arch" type="xml">
+            <search string="Search Workspaces">
+                <field name="name"/>
+                <field name="workspace_path"/>
+                <filter string="Ready" name="ready" domain="[('status', '=', 'ready')]"/>
+                <filter string="Missing" name="missing" domain="[('status', '=', 'missing')]"/>
+                <filter string="Error" name="error" domain="[('status', '=', 'error')]"/>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- Workspace Action -->
+    <record id="action_nexora_workspace" model="ir.actions.act_window">
+        <field name="name">Workspaces</field>
+        <field name="res_model">nexora.workspace</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_nexora_workspace_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Workspace!
+            </p>
+            <p>
+                Workspaces are physical runtime resources attached to Builder Sessions.
+            </p>
+        </field>
+    </record>
+</odoo>

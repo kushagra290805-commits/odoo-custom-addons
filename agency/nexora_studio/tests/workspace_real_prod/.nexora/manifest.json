@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-07-15T17:09:32.582840",
+  "session_uuid": "unknown",
+  "configuration_uuid": "unknown",
+  "provider": "none",
+  "file_hashes": {
+    "index.html": "3f08ebd75ccaa772244cebe228d15b3c15f57c52e93cac6806658a4907d74ba6",
+    "package-lock.json": "8a37884435c194a267f0969a89b0cf3910d192a200dd4e81979045cfcb9faeee",
+    "package.json": "9b9d215d8a59040d6673cd5bd751a74a0ca55c05e2af908925ecbf65cfdf3f4e",
+    "template.json": "63b29dc85fa2fa3a68280a67ad71e83c36f24e6a278b71b794d2925c96f6e7c3",
+    "vite.config.js": "feb4908db242705ecf99d3f65a49eb6513922ea6301d27047a80deb3e4fe80d0",
+    "components\\Header.js": "8b30efa038793b38a44a1bc945852b56fa884bdd2f0757246441c56abb5dd3a9",
+    "src\\App.jsx": "7810c748529454abf516633e32080420c16e5c875232eb8a0756e904538157c0",
+    "src\\main.jsx": "4b3769efacf74211f4e69fc629a694951f5fc2aef934311efbccf26e3efbd5e9"
+  },
+  "dependencies": [
+    "npm"
+  ],
+  "generator_version": "1.0.0"
+}

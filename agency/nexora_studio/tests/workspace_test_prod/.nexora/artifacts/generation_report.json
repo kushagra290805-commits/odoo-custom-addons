@@ -1,0 +1,13 @@
+{
+    "mode": "FULL",
+    "targets": [],
+    "force": false,
+    "generated_files": [
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_test_prod\\src\\components\\Header.js"
+    ],
+    "materialized_files": [
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_test_prod\\src\\index.html",
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_test_prod\\src\\template.json"
+    ],
+    "runtimes": []
+}

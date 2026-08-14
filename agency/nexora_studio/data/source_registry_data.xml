@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="source_react_bits" model="nexora.source_registry">
+            <field name="name">React Bits</field>
+            <field name="technical_name">react_bits</field>
+            <field name="adapter_class">McpSourceAdapter</field>
+            <field name="connector_id" search="[('connector_id', '=', 'github_mcp')]"/>
+            <field name="sequence">10</field>
+            <field name="capabilities">SEARCH,GET</field>
+            <field name="config_json"><![CDATA[{
+    "capability_map": {
+        "search": "search_code",
+        "get": "get_file_contents"
+    },
+    "default_payload": {
+        "repo": "DavidHDev/react-bits"
+    }
+}]]></field>
+        </record>
+    </data>
+</odoo>

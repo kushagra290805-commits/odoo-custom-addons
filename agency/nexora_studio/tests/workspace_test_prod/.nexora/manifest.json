@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-07-15T15:42:50.332133",
+  "session_uuid": "unknown",
+  "configuration_uuid": "unknown",
+  "provider": "none",
+  "file_hashes": {
+    "index.html": "6f1a8b8d2dc1f25a81c3dbefbb1a23b2881ba2fd3dba23494b986fdef1042daa",
+    "template.json": "3ad55d1c530b5f4afd56d0bbab5b4f40029d3a2798510508d280bd1e8f7df382",
+    "components\\Header.js": "ce7f34d70a454541def066ad9a10559a5fe4547ed182117d78f2370c73674559"
+  },
+  "dependencies": [],
+  "generator_version": "1.0.0"
+}

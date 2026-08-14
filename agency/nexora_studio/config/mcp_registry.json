@@ -1,0 +1,511 @@
+{
+  "mcpServers": {
+    "github_mcp": {
+      "_comment": "SECURITY: credentials must be supplied via nexora.mcp_credential — never stored here",
+      "namespace": "mcp.github",
+      "provider_id": "github_mcp",
+      "business_capability": "repository_management",
+      "display_name": "GitHub MCP Server",
+      "transport": "stdio",
+      "enabled": false,
+      "lifecycle": "planned",
+      "verified": false,
+      "startup_command": "docker",
+      "startup_args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e",
+        "GITHUB_READ_ONLY=1",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "environment_variables": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "__INJECT_VIA_NEXORA_MCP_CREDENTIAL__",
+        "GITHUB_READ_ONLY": "1"
+      },
+      "initial_verification_mode": "READ_ONLY",
+      "capability_filters": [
+        "repo.read",
+        "issues.read",
+        "repo.search",
+        "file.read"
+      ],
+      "repository": "https://github.com/github/github-mcp-server",
+      "package": "ghcr.io/github/github-mcp-server",
+      "license": "MIT",
+      "maintenance_status": "active",
+      "authentication_requirements": "GITHUB_PERSONAL_ACCESS_TOKEN",
+      "supported_capabilities": [
+        "repo.read",
+        "repo.search",
+        "issues.search",
+        "file.read"
+      ],
+      "priority": 100,
+      "provider_type": "repository",
+      "requires_authentication": true,
+      "limits": {
+        "rate_limit": "5000/hour",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 500
+    },
+    "context7_mcp": {
+      "namespace": "mcp.context7",
+      "provider_id": "context7_mcp",
+      "business_capability": "documentation",
+      "display_name": "Context7 Documentation MCP",
+      "transport": "stdio",
+      "enabled": true,
+      "startup_command": "npx.cmd",
+      "startup_args": [
+        "-y",
+        "--quiet",
+        "@upstash/context7-mcp"
+      ],
+      "environment_variables": {
+        "CONTEXT7_API_KEY": "__INJECT_VIA_NEXORA_MCP_CREDENTIAL__"
+      },
+      "capability_filters": [
+        "*"
+      ],
+      "lifecycle": "planned",
+      "verified": false,
+      "repository": "https://github.com/upstash/context7-mcp",
+      "package": "@upstash/context7-mcp",
+      "license": "MIT",
+      "maintenance_status": "active",
+      "authentication_requirements": "CONTEXT7_API_KEY",
+      "supported_capabilities": [
+        "documentation.search",
+        "documentation.lookup",
+        "documentation.examples",
+        "documentation.version"
+      ],
+      "priority": 90,
+      "provider_type": "documentation",
+      "requires_authentication": true,
+      "limits": {
+        "rate_limit": "1000/min",
+        "cost": "paid"
+      },
+      "estimated_latency_ms": 200
+    },
+    "tavily_mcp": {
+      "namespace": "mcp.tavily",
+      "provider_id": "tavily_mcp",
+      "business_capability": "web_search",
+      "display_name": "Tavily Web Research MCP",
+      "transport": "stdio",
+      "enabled": true,
+      "startup_command": "npx.cmd",
+      "startup_args": [
+        "-y",
+        "--quiet",
+        "tavily-mcp"
+      ],
+      "environment_variables": {
+        "TAVILY_API_KEY": "__INJECT_VIA_NEXORA_MCP_CREDENTIAL__"
+      },
+      "capability_filters": [
+        "*"
+      ],
+      "lifecycle": "planned",
+      "verified": false,
+      "repository": "https://github.com/tavily-ai/tavily-mcp",
+      "package": "tavily-mcp",
+      "license": "MIT",
+      "maintenance_status": "active",
+      "authentication_requirements": "TAVILY_API_KEY",
+      "supported_capabilities": [
+        "search.web",
+        "search.news",
+        "search.images"
+      ],
+      "priority": 95,
+      "provider_type": "search",
+      "requires_authentication": true,
+      "limits": {
+        "rate_limit": "100/min",
+        "cost": "paid"
+      },
+      "estimated_latency_ms": 800
+    },
+    "firecrawl_mcp": {
+      "namespace": "mcp.firecrawl",
+      "provider_id": "firecrawl_mcp",
+      "business_capability": "web_extraction",
+      "display_name": "Firecrawl Website Extraction MCP",
+      "transport": "stdio",
+      "enabled": true,
+      "startup_command": "npx.cmd",
+      "startup_args": [
+        "-y",
+        "--quiet",
+        "firecrawl-mcp"
+      ],
+      "environment_variables": {
+        "FIRECRAWL_API_KEY": "__INJECT_VIA_NEXORA_MCP_CREDENTIAL__"
+      },
+      "capability_filters": [
+        "*"
+      ],
+      "lifecycle": "planned",
+      "verified": false,
+      "repository": "https://github.com/mendableai/firecrawl-mcp",
+      "package": "firecrawl-mcp",
+      "license": "MIT",
+      "maintenance_status": "active",
+      "authentication_requirements": "FIRECRAWL_API_KEY",
+      "supported_capabilities": [
+        "crawl.website",
+        "crawl.page",
+        "crawl.markdown",
+        "crawl.screenshot",
+        "crawl.extract"
+      ],
+      "priority": 95,
+      "provider_type": "extraction",
+      "requires_authentication": true,
+      "limits": {
+        "rate_limit": "500/min",
+        "cost": "paid"
+      },
+      "estimated_latency_ms": 1000
+    },
+    "penpot_mcp": {
+      "namespace": "mcp.penpot",
+      "provider_id": "penpot_mcp",
+      "business_capability": "design_tokens",
+      "display_name": "Penpot Design MCP",
+      "transport": "sse",
+      "endpoint": "http://localhost:4401/sse",
+      "enabled": true,
+      "startup_command": "npx.cmd",
+      "startup_args": [
+        "-y",
+        "--quiet",
+        "@penpot/mcp"
+      ],
+      "cwd": "C:/Users/kusha/AppData/Roaming/npm/node_modules/@penpot/mcp/packages/server",
+      "environment_variables": {
+        "PENPOT_CONFIGURATION": "__INJECT_VIA_NEXORA_MCP_CREDENTIAL__"
+      },
+      "capability_filters": [
+        "*"
+      ],
+      "lifecycle": "planned",
+      "verified": false,
+      "repository": "https://github.com/penpot/penpot-mcp",
+      "package": "@penpot/mcp",
+      "license": "MPL-2.0",
+      "maintenance_status": "active",
+      "authentication_requirements": "PENPOT_CONFIGURATION",
+      "supported_capabilities": [
+        "*"
+      ],
+      "priority": 50,
+      "provider_type": "unknown",
+      "requires_authentication": false,
+      "limits": {
+        "rate_limit": "unlimited",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 500
+    },
+    "spline_mcp": {
+      "namespace": "mcp.spline",
+      "provider_id": "spline_mcp",
+      "business_capability": "3d_assets",
+      "display_name": "Spline 3D MCP",
+      "transport": "stdio",
+      "enabled": false,
+      "startup_command": null,
+      "startup_args": [],
+      "environment_variables": {},
+      "capability_filters": [
+        "*"
+      ],
+      "lifecycle": "planned",
+      "verified": false,
+      "health_check": null,
+      "supported_capabilities": [
+        "*"
+      ],
+      "priority": 50,
+      "provider_type": "unknown",
+      "requires_authentication": false,
+      "limits": {
+        "rate_limit": "unlimited",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 500
+    },
+    "gosom_mcp": {
+      "namespace": "mcp.gosom",
+      "provider_id": "gosom_mcp",
+      "business_capability": "business_extraction",
+      "display_name": "Gosom Business Extraction MCP",
+      "transport": "stdio",
+      "enabled": false,
+      "startup_command": null,
+      "startup_args": [],
+      "environment_variables": {},
+      "capability_filters": [
+        "*"
+      ],
+      "lifecycle": "planned",
+      "verified": false,
+      "health_check": null,
+      "supported_capabilities": [
+        "*"
+      ],
+      "priority": 50,
+      "provider_type": "unknown",
+      "requires_authentication": false,
+      "limits": {
+        "rate_limit": "unlimited",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 500
+    },
+    "threejs_docs_mcp": {
+      "namespace": "mcp.threejs_docs",
+      "provider_id": "threejs_docs_mcp",
+      "business_capability": "3d_documentation",
+      "display_name": "Three.js Documentation MCP",
+      "transport": "stdio",
+      "enabled": false,
+      "startup_command": null,
+      "startup_args": [],
+      "environment_variables": {},
+      "capability_filters": [
+        "*"
+      ],
+      "category": "documentation",
+      "tags": [
+        "3d",
+        "webgl",
+        "javascript",
+        "threejs"
+      ],
+      "version": "1.0.0",
+      "startup_strategy": "on_demand",
+      "authentication": {
+        "required": false,
+        "type": "none"
+      },
+      "health_check": null,
+      "lifecycle": "planned",
+      "verified": false,
+      "supported_capabilities": [
+        "*"
+      ],
+      "priority": 50,
+      "provider_type": "unknown",
+      "requires_authentication": false,
+      "limits": {
+        "rate_limit": "unlimited",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 500
+    },
+    "r3f_docs_mcp": {
+      "namespace": "mcp.r3f_docs",
+      "provider_id": "r3f_docs_mcp",
+      "business_capability": "3d_documentation",
+      "display_name": "React Three Fiber Documentation MCP",
+      "transport": "stdio",
+      "enabled": false,
+      "startup_command": null,
+      "startup_args": [],
+      "environment_variables": {},
+      "capability_filters": [
+        "*"
+      ],
+      "category": "documentation",
+      "tags": [
+        "3d",
+        "react",
+        "fiber",
+        "r3f"
+      ],
+      "version": "1.0.0",
+      "startup_strategy": "on_demand",
+      "authentication": {
+        "required": false,
+        "type": "none"
+      },
+      "health_check": null,
+      "lifecycle": "planned",
+      "verified": false,
+      "supported_capabilities": [
+        "*"
+      ],
+      "priority": 50,
+      "provider_type": "unknown",
+      "requires_authentication": false,
+      "limits": {
+        "rate_limit": "unlimited",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 500
+    },
+    "drei_docs_mcp": {
+      "namespace": "mcp.drei_docs",
+      "provider_id": "drei_docs_mcp",
+      "business_capability": "3d_documentation",
+      "display_name": "Drei Documentation MCP",
+      "transport": "stdio",
+      "enabled": false,
+      "startup_command": null,
+      "startup_args": [],
+      "environment_variables": {},
+      "capability_filters": [
+        "*"
+      ],
+      "category": "documentation",
+      "tags": [
+        "3d",
+        "react",
+        "drei",
+        "helpers"
+      ],
+      "version": "1.0.0",
+      "startup_strategy": "on_demand",
+      "authentication": {
+        "required": false,
+        "type": "none"
+      },
+      "health_check": null,
+      "lifecycle": "planned",
+      "verified": false,
+      "supported_capabilities": [
+        "*"
+      ],
+      "priority": 50,
+      "provider_type": "unknown",
+      "requires_authentication": false,
+      "limits": {
+        "rate_limit": "unlimited",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 500
+    },
+    "gsap_docs_mcp": {
+      "namespace": "mcp.gsap_docs",
+      "provider_id": "gsap_docs_mcp",
+      "business_capability": "animation_documentation",
+      "display_name": "GSAP Documentation MCP",
+      "transport": "stdio",
+      "enabled": true,
+      "startup_command": "npx.cmd",
+      "startup_args": [
+        "-y",
+        "--quiet",
+        "@vinhnguyen/gsap-mcp"
+      ],
+      "environment_variables": {},
+      "capability_filters": [
+        "*"
+      ],
+      "category": "documentation",
+      "tags": [
+        "animation",
+        "javascript",
+        "gsap",
+        "tween"
+      ],
+      "version": "1.0.0",
+      "startup_strategy": "on_demand",
+      "authentication": {
+        "required": false,
+        "type": "none"
+      },
+      "health_check": {
+        "endpoint": "ping",
+        "timeout_ms": 5000
+      },
+      "lifecycle": "verified",
+      "verified": true,
+      "repository": "https://github.com/vinhnguyen/gsap-mcp",
+      "package": "@vinhnguyen/gsap-mcp",
+      "license": "MIT",
+      "maintenance_status": "active",
+      "authentication_requirements": "none",
+      "supported_capabilities": [
+        "animation.reference",
+        "animation.examples",
+        "animation.best_practices"
+      ],
+      "priority": 80,
+      "provider_type": "documentation",
+      "requires_authentication": false,
+      "limits": {
+        "rate_limit": "100/min",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 300
+    },
+    "mdn_docs_mcp": {
+      "namespace": "mcp.mdn_docs",
+      "provider_id": "mdn_docs_mcp",
+      "business_capability": "web_documentation",
+      "display_name": "MDN Documentation MCP",
+      "transport": "stdio",
+      "enabled": true,
+      "startup_command": "npx.cmd",
+      "startup_args": [
+        "-y",
+        "--quiet",
+        "@pipeworx/mcp-mdn-search"
+      ],
+      "environment_variables": {},
+      "capability_filters": [
+        "*"
+      ],
+      "category": "documentation",
+      "tags": [
+        "web",
+        "css",
+        "html",
+        "mdn",
+        "api"
+      ],
+      "version": "1.0.0",
+      "startup_strategy": "on_demand",
+      "authentication": {
+        "required": false,
+        "type": "none"
+      },
+      "health_check": {
+        "endpoint": "ping",
+        "timeout_ms": 5000
+      },
+      "lifecycle": "verified",
+      "verified": true,
+      "repository": "https://github.com/pipeworx/mcp-mdn-search",
+      "package": "@pipeworx/mcp-mdn-search",
+      "license": "MIT",
+      "maintenance_status": "active",
+      "authentication_requirements": "none",
+      "supported_capabilities": [
+        "documentation.search",
+        "css.reference",
+        "html.reference",
+        "javascript.reference",
+        "webapi.reference"
+      ],
+      "priority": 80,
+      "provider_type": "documentation",
+      "requires_authentication": false,
+      "limits": {
+        "rate_limit": "100/min",
+        "cost": "free"
+      },
+      "estimated_latency_ms": 300
+    }
+  }
+}

@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- We need a server action for Test Connection to call provider_manager -->
+    <record id="action_test_connection" model="ir.actions.server">
+        <field name="name">Test Connection</field>
+        <field name="model_id" ref="model_nexora_provider_registry"/>
+        <field name="state">code</field>
+        <field name="code">
+            for record in records:
+                env['nexora.ai_provider_manager'].test_connection(record.provider_id)
+        </field>
+    </record>
+
+    <!-- Provider Registry Form View -->
+    <record id="view_nexora_provider_registry_form" model="ir.ui.view">
+        <field name="name">nexora.provider.registry.form</field>
+        <field name="model">nexora.provider.registry</field>
+        <field name="arch" type="xml">
+            <form string="Provider Configuration">
+                <header>
+                    <button name="%(action_test_connection)d" type="action" string="Test Connection" class="oe_highlight"/>
+                    <field name="lifecycle_state" widget="statusbar" statusbar_visible="UNCONFIGURED,CONFIGURED,VALIDATING,HEALTHY,DEGRADED,UNAVAILABLE,DISABLED"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="health_status != 'CONFIG_CHANGED'">
+                        Configuration changed since last validation. Please run Test Connection.
+                    </div>
+                    
+                    <!-- Compact Dashboard -->
+                    <div class="row mb-3" style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #dee2e6;">
+                        <div class="col-3">
+                            <strong>Catalog</strong><br/>
+                            <field name="catalog_model_count" readonly="1"/> Models
+                        </div>
+                        <div class="col-3">
+                            <strong>Health</strong><br/>
+                            <field name="lifecycle_state" readonly="1"/>
+                        </div>
+                        <div class="col-3">
+                            <strong>Last Sync</strong><br/>
+                            <field name="catalog_last_sync" readonly="1"/>
+                        </div>
+                        <div class="col-3">
+                            <strong>Default Model</strong><br/>
+                            <field name="summary_model_name" readonly="1"/>
+                        </div>
+                    </div>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
+                            <field name="is_active" widget="boolean_button" options='{"terminology": "archive"}'/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Provider Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Provider Information">
+                            <field name="provider_id"/>
+                            <field name="category"/>
+                            <field name="provider_type"/>
+                            <field name="compatibility_profile"/>
+                            <field name="priority_weight"/>
+                        </group>
+                        <group string="API Configuration">
+                            <field name="base_url"/>
+                            <field name="api_key" password="True"/>
+                            <field name="timeout"/>
+                            <field name="retry_policy"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Model Configuration">
+                            <group>
+                                <group string="Default Models">
+                                    <field name="default_model_id" options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="default_chat_model_id" options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="default_code_model_id" options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="default_reasoning_model_id" options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="default_vision_model_id" options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="default_embedding_model_id" options="{'no_create': True, 'no_open': True}"/>
+                                </group>
+                                <group string="Selected Model Summary">
+                                    <field name="summary_model_name"/>
+                                    <field name="summary_model_provider"/>
+                                    <field name="summary_model_context"/>
+                                    <field name="summary_model_streaming"/>
+                                    <field name="summary_model_tool_calling"/>
+                                    <field name="summary_model_vision"/>
+                                    <field name="summary_model_reasoning"/>
+                                    <field name="summary_model_json"/>
+                                    <field name="summary_model_embedding"/>
+                                </group>
+                                <group string="Catalog Status">
+                                    <field name="catalog_model_count" readonly="1"/>
+                                    <field name="catalog_sync_status" readonly="1" decoration-success="catalog_sync_status == 'success'" decoration-danger="catalog_sync_status == 'failed'" decoration-info="catalog_sync_status == 'syncing'" decoration-muted="catalog_sync_status == 'never'" decoration-warning="catalog_sync_status == 'stale'"/>
+                                    <field name="catalog_last_sync" readonly="1"/>
+                                    <field name="last_successful_sync" readonly="1"/>
+                                    <field name="last_failed_sync" readonly="1"/>
+                                    <field name="sync_retry_count" readonly="1"/>
+                                    <field name="catalog_sync_error" readonly="1" invisible="catalog_sync_status != 'failed'"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Diagnostics">
+                            <group>
+                                <group string="Health">
+                                    <field name="config_state" readonly="1" widget="badge" decoration-success="config_state == 'valid'" decoration-danger="config_state == 'invalid'" decoration-warning="config_state == 'missing_key'"/>
+                                    <field name="connectivity_state" readonly="1" widget="badge" decoration-success="connectivity_state == 'reachable'" decoration-danger="connectivity_state == 'unreachable'"/>
+                                    <field name="auth_state" readonly="1" widget="badge" decoration-success="auth_state == 'authenticated'" decoration-danger="auth_state == 'failed'"/>
+                                    <field name="health_status" readonly="1"/>
+                                    <field name="latency_ms" readonly="1"/>
+                                    <field name="last_checked" readonly="1"/>
+                                </group>
+                                <group string="Cached Metadata">
+                                    <field name="provider_version" readonly="1"/>
+                                    <field name="api_version" readonly="1"/>
+                                    <field name="last_sync_timestamp" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Capability Summary">
+                            <group>
+                                <group string="Feature Support">
+                                    <field name="cap_streaming" readonly="1"/>
+                                    <field name="cap_tool_calling" readonly="1"/>
+                                    <field name="cap_json_mode" readonly="1"/>
+                                    <field name="cap_vision" readonly="1"/>
+                                    <field name="cap_reasoning" readonly="1"/>
+                                    <field name="cap_embeddings" readonly="1"/>
+                                    <field name="cap_function_calling" readonly="1"/>
+                                </group>
+                                <group string="Limits">
+                                    <field name="cap_context_window" readonly="1"/>
+                                    <field name="cap_max_output_tokens" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Audit Log">
+                            <field name="audit_log_ids" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Provider Registry Tree View -->
+    <record id="view_nexora_provider_registry_tree" model="ir.ui.view">
+        <field name="name">nexora.provider.registry.tree</field>
+        <field name="model">nexora.provider.registry</field>
+        <field name="arch" type="xml">
+            <list string="AI Providers">
+                <field name="name"/>
+                <field name="default_model_id"/>
+                <field name="catalog_model_count" string="Available Models"/>
+                <field name="lifecycle_state" string="Health"/>
+                <field name="catalog_last_sync" string="Last Sync"/>
+                <field name="catalog_sync_status" string="Catalog Status" widget="badge" decoration-success="catalog_sync_status == 'success'" decoration-danger="catalog_sync_status == 'failed'" decoration-warning="catalog_sync_status == 'stale'"/>
+                <field name="is_active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action for Provider Registry -->
+    <record id="action_nexora_provider_registry" model="ir.actions.act_window">
+        <field name="name">AI Providers</field>
+        <field name="res_model">nexora.provider.registry</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('category', '=', 'ai')]</field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_nexora_provider_registry" 
+              name="AI Providers" 
+              parent="nexora_studio.menu_nexora_configuration" 
+              action="action_nexora_provider_registry" 
+              sequence="20"/>
+
+</odoo>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_template_version_list" model="ir.ui.view">
+        <field name="name">nexora.template_version.list</field>
+        <field name="model">nexora.template_version</field>
+        <field name="arch" type="xml">
+            <list string="Template Versions">
+                <field name="name"/>
+                <field name="frontend_template_id"/>
+                <field name="backend_template_id"/>
+                <field name="commit_hash"/>
+                <field name="release_date"/>
+                <field name="is_latest" widget="boolean_toggle"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_template_version_form" model="ir.ui.view">
+        <field name="name">nexora.template_version.form</field>
+        <field name="model">nexora.template_version</field>
+        <field name="arch" type="xml">
+            <form string="Template Version">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="frontend_template_id"/>
+                            <field name="backend_template_id"/>
+                        </group>
+                        <group>
+                            <field name="commit_hash"/>
+                            <field name="release_date"/>
+                            <field name="is_latest" widget="boolean_toggle"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <group string="Release Notes">
+                        <field name="release_notes" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_template_version_search" model="ir.ui.view">
+        <field name="name">nexora.template_version.search</field>
+        <field name="model">nexora.template_version</field>
+        <field name="arch" type="xml">
+            <search string="Search Template Versions">
+                <field name="name"/>
+                <field name="commit_hash"/>
+                <filter string="Latest Releases" name="latest" domain="[('is_latest', '=', True)]"/>
+                <separator/>
+                <filter string="Group By Frontend" name="group_by_frontend" context="{'group_by': 'frontend_template_id'}"/>
+                <filter string="Group By Backend" name="group_by_backend" context="{'group_by': 'backend_template_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_template_version" model="ir.actions.act_window">
+        <field name="name">Template Versions</field>
+        <field name="res_model">nexora.template_version</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_template_version_search"/>
+    </record>
+
+    <menuitem id="menu_template_version"
+              name="Versions"
+              parent="menu_template_store_templates"
+              action="action_template_version"
+              sequence="30"/>
+</odoo>

@@ -1,0 +1,320 @@
+[
+  {
+    "file": "check_or.py",
+    "line": 8,
+    "bypass": "requests.get",
+    "category": "architectural violation"
+  },
+  {
+    "file": "verify_preview_runtime.py",
+    "line": 227,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\dependency_installer_service.py",
+    "line": 39,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\execution_sandbox_service.py",
+    "line": 26,
+    "bypass": "subprocess.run",
+    "category": "intentional"
+  },
+  {
+    "file": "services\\git_service.py",
+    "line": 54,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ide_launcher.py",
+    "line": 198,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\context_builder.py",
+    "line": 243,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\context_builder.py",
+    "line": 247,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\gemini_adapter.py",
+    "line": 39,
+    "bypass": "requests.get",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\gemini_adapter.py",
+    "line": 57,
+    "bypass": "requests.get",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\gemini_adapter.py",
+    "line": 73,
+    "bypass": "requests.get",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\gemini_adapter.py",
+    "line": 139,
+    "bypass": "requests.post",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\openai_adapter.py",
+    "line": 38,
+    "bypass": "requests.get",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\openai_adapter.py",
+    "line": 56,
+    "bypass": "requests.get",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\openai_adapter.py",
+    "line": 71,
+    "bypass": "requests.get",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\openai_adapter.py",
+    "line": 133,
+    "bypass": "requests.post",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\patch_engine.py",
+    "line": 136,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\patch_engine.py",
+    "line": 141,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\patch_engine.py",
+    "line": 250,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\patch_engine.py",
+    "line": 255,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\ai\\patch_engine.py",
+    "line": 260,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\generation\\stages\\stage_05_dependency_resolution.py",
+    "line": 27,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\generation\\stages\\stage_07_runtime_bootstrap.py",
+    "line": 45,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\generation\\stages\\stage_07_runtime_bootstrap.py",
+    "line": 46,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\generation\\stages\\stage_07_runtime_bootstrap.py",
+    "line": 47,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\generation\\stages\\stage_07_runtime_bootstrap.py",
+    "line": 63,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\python_http_launcher.py",
+    "line": 117,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\python_http_launcher.py",
+    "line": 147,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\python_http_launcher.py",
+    "line": 178,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\python_http_launcher.py",
+    "line": 192,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\python_http_launcher.py",
+    "line": 253,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\python_http_launcher.py",
+    "line": 219,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\python_http_launcher.py",
+    "line": 280,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\python_http_launcher.py",
+    "line": 266,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\static_file_launcher.py",
+    "line": 107,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\static_file_launcher.py",
+    "line": 137,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\static_file_launcher.py",
+    "line": 185,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\static_file_launcher.py",
+    "line": 198,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\vite_launcher.py",
+    "line": 125,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\vite_launcher.py",
+    "line": 156,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\vite_launcher.py",
+    "line": 204,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\launchers\\vite_launcher.py",
+    "line": 217,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\providers\\image_generation_provider.py",
+    "line": 32,
+    "bypass": "requests.post",
+    "category": "architectural violation"
+  },
+  {
+    "file": "services\\tools\\terminal_tool.py",
+    "line": 42,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_auth_integration.py",
+    "line": 52,
+    "bypass": "requests.get",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_playwright_interaction.py",
+    "line": 159,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_playwright_interaction.py",
+    "line": 163,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_playwright_validation.py",
+    "line": 138,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_playwright_validation.py",
+    "line": 134,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_runtime_validation.py",
+    "line": 211,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_runtime_validation.py",
+    "line": 232,
+    "bypass": "subprocess.Popen",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_runtime_validation.py",
+    "line": 86,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  },
+  {
+    "file": "tests\\test_runtime_validation.py",
+    "line": 113,
+    "bypass": "subprocess.run",
+    "category": "architectural violation"
+  }
+]

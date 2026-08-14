@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Builder Session Form View -->
+    <record id="view_nexora_builder_session_form" model="ir.ui.view">
+        <field name="name">nexora.builder_session.form</field>
+        <field name="model">nexora.builder_session</field>
+        <field name="arch" type="xml">
+            <form string="Builder Session">
+                <header>
+
+                    <button name="action_recover_session" string="Recover Session" type="object" class="btn-secondary"/>
+                    <button name="action_destroy_session" string="Destroy Session" type="object" class="btn-danger" confirm="Are you sure you want to destroy this session and its workspace?"/>
+                    <button name="action_refresh_runtime_status" string="Refresh Runtime Status" type="object"/>
+                    <field name="runtime_state" widget="statusbar" statusbar_visible="stopped,starting,running,busy,stopping,error"/>
+                </header>
+                <sheet>
+                    <field name="originating_job_uuid" invisible="1"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_originating_job" type="object" class="oe_stat_button" icon="fa-tasks"
+                                invisible="not originating_job_uuid">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Originating</span>
+                                <span class="o_stat_text">Job</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Session Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="session_uuid"/>
+                            <field name="builder_configuration_id"/>
+                            <field name="workspace_id"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Runtime Dashboard">
+                            <group string="Session Overview">
+                                <group>
+                                    <field name="lifecycle_phase"/>
+                                    <field name="runtime_health" widget="badge" 
+                                           decoration-danger="runtime_health == 'failed'"
+                                           decoration-warning="runtime_health == 'degraded'"
+                                           decoration-success="runtime_health == 'healthy'"/>
+                                    <field name="execution_order_display"/>
+                                    <field name="last_event_display"/>
+                                </group>
+                                <group>
+                                    <field name="runtime_count"/>
+                                    <field name="healthy_runtime_count"/>
+                                    <field name="failed_runtime_count"/>
+                                    <field name="runtime_last_activity"/>
+                                </group>
+                            </group>
+                            <group string="Workspace Context">
+                                <group>
+                                    <field name="workspace_status" widget="badge"
+                                           decoration-danger="workspace_status == 'missing'"
+                                           decoration-warning="workspace_status == 'partial'"
+                                           decoration-success="workspace_status in ('valid', 'ready')"/>
+                                </group>
+                                <group>
+                                    <field name="workspace_health" widget="badge"
+                                           decoration-danger="workspace_health == 'missing'"
+                                           decoration-warning="workspace_health == 'partial'"
+                                           decoration-success="workspace_health == 'healthy'"/>
+                                </group>
+                            </group>
+                            <group string="Dependency Graph">
+                                <field name="dependency_graph_display" nolabel="1"/>
+                            </group>
+                            <group string="Errors" invisible="not runtime_errors">
+                                <field name="runtime_errors" nolabel="1" class="text-danger"/>
+                            </group>
+                            <group string="IDE Integration">
+                                <group>
+                                    <field name="ide_name"/>
+                                    <field name="ide_status" widget="badge"
+                                           decoration-success="ide_status == 'running'"
+                                           decoration-danger="ide_status == 'error'"/>
+                                    <field name="ide_attachment_status" widget="badge"
+                                           decoration-success="ide_attachment_status == 'attached'"
+                                           decoration-muted="ide_attachment_status == 'detached'"/>
+                                    <label for="ide_workspace_path" string="IDE Workspace Path"/>
+                                    <div class="o_row">
+                                        <field name="ide_workspace_path" readonly="1" widget="CopyClipboardChar" help="Open this folder in Antigravity IDE to begin development."/>
+
+                                    </div>
+                                    <field name="ide_launcher_id"/>
+                                </group>
+                                <group>
+                                    <field name="ide_pid"/>
+                                    <field name="ide_heartbeat"/>
+                                    <field name="ide_last_seen"/>
+                                    <field name="ide_session_uuid"/>
+                                    <field name="ide_workspace_uuid"/>
+                                </group>
+                            </group>
+                            <group string="MCP Integration">
+                                <group>
+                                    <field name="mcp_status" widget="badge"
+                                           decoration-success="mcp_status == 'running'"
+                                           decoration-danger="mcp_status == 'error'"/>
+                                    <field name="mcp_runtime_health" widget="badge"
+                                           decoration-success="mcp_runtime_health == 'healthy'"
+                                           decoration-danger="mcp_runtime_health == 'failed'"/>
+                                    <field name="mcp_server_version"/>
+                                    <field name="mcp_tool_count"/>
+                                </group>
+                                <group>
+                                    <field name="mcp_last_tool"/>
+                                    <field name="mcp_last_execution"/>
+                                </group>
+                            <group string="Enterprise Platform Status" colspan="2">
+                                <group>
+                                    <field name="plugin_count"/>
+                                    <field name="enabled_plugins_count"/>
+                                    <field name="disabled_plugins_count"/>
+                                    <field name="discovery_timestamp"/>
+                                </group>
+                                <group>
+                                    <field name="dependency_status"/>
+                                    <field name="cache_status"/>
+                                    <field name="compatibility_status"/>
+                                </group>
+                            </group>
+                            <group string="Enterprise Capabilities" colspan="2">
+                                <field name="mcp_capability_ids" nolabel="1" readonly="1">
+                                    <list>
+                                        <field name="capability_id"/>
+                                        <field name="display_name"/>
+                                        <field name="capability_code"/>
+                                        <field name="category"/>
+                                        <field name="provider"/>
+                                        <field name="version"/>
+                                        <field name="dependencies"/>
+                                        <field name="health_status" widget="badge" 
+                                               decoration-success="health_status == 'healthy'"
+                                               decoration-danger="health_status == 'failed'"
+                                               decoration-warning="health_status == 'degraded'"/>
+                                        <field name="enabled" widget="boolean_toggle"/>
+                                        <field name="last_validation"/>
+                                    </list>
+                                </field>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Timeline &amp; Events">
+                            <field name="event_ids" readonly="1">
+                                <list string="Events" decoration-danger="event_type == 'FAILED'" decoration-warning="event_type == 'DEGRADED'" decoration-success="event_type in ('STARTED', 'HEALTHY', 'RECOVERED', 'ATTACHED')" decoration-muted="event_type in ('DETACHED', 'STOPPED')">
+                                    <field name="timestamp"/>
+                                    <field name="runtime_type"/>
+                                    <field name="event_type" widget="badge"
+                                           decoration-danger="event_type == 'FAILED'"
+                                           decoration-warning="event_type in ('DEGRADED', 'STOPPING')"
+                                           decoration-success="event_type in ('STARTED', 'HEALTHY', 'RECOVERED', 'ATTACHED')"
+                                           decoration-info="event_type in ('STARTING', 'STOPPED', 'DETACHED')"/>
+                                    <field name="message"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Lifecycle &amp; Notes">
+                            <group>
+                                <field name="status"/>
+                                <field name="started_at"/>
+                                <field name="closed_at"/>
+                            </group>
+                            <field name="notes" placeholder="Session internal notes..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Builder Session List View -->
+    <record id="view_nexora_builder_session_list" model="ir.ui.view">
+        <field name="name">nexora.builder_session.list</field>
+        <field name="model">nexora.builder_session</field>
+        <field name="arch" type="xml">
+            <list string="Builder Sessions">
+                <field name="name"/>
+                <field name="builder_configuration_id"/>
+                <field name="runtime_state" widget="badge" 
+                       decoration-info="runtime_state == 'stopped'" 
+                       decoration-warning="runtime_state in ('starting', 'stopping')" 
+                       decoration-success="runtime_state == 'running'" 
+                       decoration-danger="runtime_state == 'error'"/>
+                <field name="runtime_health"/>
+                <field name="workspace_id"/>
+                <field name="runtime_last_activity"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Builder Session Search View -->
+    <record id="view_nexora_builder_session_search" model="ir.ui.view">
+        <field name="name">nexora.builder_session.search</field>
+        <field name="model">nexora.builder_session</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="status"/>
+                <field name="workspace_id"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Builder Session Action -->
+    <record id="action_nexora_builder_session" model="ir.actions.act_window">
+        <field name="name">Sessions</field>
+        <field name="res_model">nexora.builder_session</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_nexora_builder_session_search"/>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new Builder Session
+            </p>
+            <p>
+                A Builder Session orchestrates the workspace, IDE integration, AI context, and Preview Server.
+            </p>
+        </field>
+    </record>
+</odoo>

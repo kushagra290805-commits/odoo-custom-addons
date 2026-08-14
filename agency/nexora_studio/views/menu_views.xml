@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Root Menu -->
+    <menuitem id="menu_nexora_root"
+              name="Nexora Administration"
+              web_icon="nexora_studio,static/description/icon.png"
+              action="action_nexora_studio_dashboard_client"
+              sequence="10"/>
+
+    <!-- Settings menu for the main Odoo settings app -->
+    <menuitem id="menu_nexora_config"
+              name="Nexora Administration"
+              parent="base.menu_administration"
+              sequence="100"
+              action="action_nexora_config_settings"/>
+
+    <!-- 1. Administration Menu -->
+    <menuitem id="menu_nexora_admin"
+              name="Administration"
+              parent="menu_nexora_root"
+              sequence="10"/>
+
+    <menuitem id="menu_nexora_builder_sessions"
+              name="Builder Sessions"
+              parent="menu_nexora_admin"
+              action="action_nexora_builder_session"
+              sequence="10"/>
+
+    <menuitem id="menu_nexora_workspace"
+              name="Workspaces"
+              parent="menu_nexora_admin"
+              action="action_nexora_workspace"
+              sequence="20"/>
+
+    <!-- 2. Monitoring Menu -->
+    <menuitem id="menu_nexora_monitoring"
+              name="Monitoring"
+              parent="menu_nexora_root"
+              sequence="20"/>
+
+    <menuitem id="menu_nexora_runtime"
+              name="Runtime Registry"
+              parent="menu_nexora_monitoring"
+              action="action_nexora_runtime"
+              sequence="10"/>
+
+    <!-- (AI Audit Logs and Runtime Events will be injected here via their own views) -->
+
+    <!-- 3. Configuration Menu -->
+    <menuitem id="menu_nexora_configuration"
+              name="Configuration"
+              parent="menu_nexora_root"
+              sequence="30"/>
+
+    <menuitem id="menu_nexora_builder_configuration"
+              name="Builder Configurations"
+              parent="menu_nexora_configuration"
+              action="action_nexora_builder_configuration"
+              sequence="10"/>
+
+    <!-- System Registry (Under Configuration) -->
+    <menuitem id="menu_nexora_system_registry"
+              name="System Registry"
+              parent="menu_nexora_configuration"
+              sequence="20"/>
+
+    <menuitem id="menu_nexora_components"
+              name="Components"
+              parent="menu_nexora_system_registry"
+              action="action_nexora_component"
+              sequence="10"/>
+
+    <menuitem id="menu_nexora_capabilities"
+              name="Capabilities"
+              parent="menu_nexora_system_registry"
+              action="action_nexora_capability"
+              sequence="20"/>
+
+    <menuitem id="menu_nexora_categories"
+              name="Categories"
+              parent="menu_nexora_system_registry"
+              action="action_nexora_category"
+              sequence="30"/>
+
+    <menuitem id="menu_nexora_navigation"
+              name="Navigation"
+              parent="menu_nexora_system_registry"
+              action="action_nexora_navigation"
+              sequence="40"/>
+
+    <menuitem id="menu_nexora_services"
+              name="Services"
+              parent="menu_nexora_system_registry"
+              action="action_nexora_service"
+              sequence="50"/>
+
+    <menuitem id="menu_nexora_runtime_capabilities"
+              name="Runtime Capabilities"
+              parent="menu_nexora_system_registry"
+              action="action_nexora_runtime_capability"
+              sequence="60"/>
+</odoo>

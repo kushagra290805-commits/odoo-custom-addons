@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="module_category_nexora_studio" model="ir.module.category">
+            <field name="name">Nexora Studio</field>
+            <field name="description">Nexora Studio Roles</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="privilege_nexora_roles" model="res.groups.privilege">
+            <field name="name">Roles</field>
+            <field name="category_id" ref="module_category_nexora_studio"/>
+        </record>
+
+        <!-- Viewer Group -->
+        <record id="group_nexora_viewer" model="res.groups">
+            <field name="name">Viewer</field>
+            <field name="privilege_id" ref="privilege_nexora_roles"/>
+        </record>
+
+        <!-- Developer Group (Explicitly NO base.group_user) -->
+        <record id="group_nexora_developer" model="res.groups">
+            <field name="name">Developer</field>
+            <field name="privilege_id" ref="privilege_nexora_roles"/>
+            <field name="implied_ids" eval="[(4, ref('group_nexora_viewer'))]"/>
+        </record>
+
+        <!-- Admin Group -->
+        <record id="group_nexora_admin" model="res.groups">
+            <field name="name">Admin</field>
+            <field name="privilege_id" ref="privilege_nexora_roles"/>
+            <field name="implied_ids" eval="[(4, ref('group_nexora_developer')), (4, ref('base.group_user'))]"/>
+        </record>
+
+        <!-- Super Admin Group -->
+        <record id="group_nexora_super_admin" model="res.groups">
+            <field name="name">Super Admin</field>
+            <field name="privilege_id" ref="privilege_nexora_roles"/>
+            <field name="implied_ids" eval="[(4, ref('group_nexora_admin'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        </record>
+
+        <!-- Client Portal Group -->
+        <record id="group_nexora_client" model="res.groups">
+            <field name="name">Nexora Client (Portal)</field>
+            <field name="implied_ids" eval="[(4, ref('base.group_portal'))]"/>
+        </record>
+    </data>
+</odoo>

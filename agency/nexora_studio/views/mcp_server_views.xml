@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================
+         NEXORA MCP SERVER CONFIGURATION VIEWS
+         Phase 28 — MCP Connector Onboarding Platform
+    ============================================================ -->
+
+    <record id="view_nexora_mcp_server_config_form" model="ir.ui.view">
+        <field name="name">nexora.mcp_server_config.form</field>
+        <field name="model">nexora.mcp_server_config</field>
+        <field name="arch" type="xml">
+            <form string="MCP Server Configuration">
+                <sheet>
+                    <group>
+                        <group string="Process Execution">
+                            <field name="command" placeholder="npx, /usr/bin/python, etc."/>
+                            <field name="args_json" widget="code" options="{'mode': 'json'}"/>
+                            <field name="working_directory"/>
+                            <field name="env_vars_json" widget="code" options="{'mode': 'json'}"/>
+                        </group>
+                        <group string="Execution Policies">
+                            <field name="timeout_seconds"/>
+                            <field name="startup_policy"/>
+                            <field name="discovered_capabilities_count" readonly="1"/>
+                            <field name="credential_count" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <group string="Connection Status">
+                        <field name="last_tested_at" readonly="1"/>
+                        <field name="last_test_success" readonly="1" widget="boolean_toggle"/>
+                        <field name="last_test_result_json" widget="code" options="{'mode': 'json'}" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Sub-view for credentials within connector form -->
+    <record id="view_nexora_mcp_credential_list" model="ir.ui.view">
+        <field name="name">nexora.mcp_credential.list</field>
+        <field name="model">nexora.mcp_credential</field>
+        <field name="arch" type="xml">
+            <list string="Credentials" editable="bottom">
+                <field name="credential_key"/>
+                <field name="credential_type"/>
+                <field name="description"/>
+                <field name="is_set" readonly="1" widget="boolean_toggle"/>
+                <field name="display_hint" readonly="1"/>
+                <field name="encrypted_value" password="True" groups="nexora_studio.group_nexora_super_admin"/>
+                <field name="last_rotated_at" readonly="1"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- Sub-view for discovered tools -->
+    <record id="view_nexora_mcp_discovered_tool_list" model="ir.ui.view">
+        <field name="name">nexora.mcp_discovered_tool.list</field>
+        <field name="model">nexora.mcp_discovered_tool</field>
+        <field name="arch" type="xml">
+            <list string="Discovered Capabilities">
+                <field name="discovery_source"/>
+                <field name="tool_name"/>
+                <field name="description"/>
+                <field name="discovered_at"/>
+            </list>
+        </field>
+    </record>
+
+</odoo>

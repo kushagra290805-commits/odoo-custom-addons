@@ -1,0 +1,66 @@
+{
+    "mcp.github": {
+        "Registration": "PASS",
+        "Bootstrap": "PASS",
+        "Execution": "FAIL",
+        "Latency": "1 ms",
+        "Regression": "FAIL",
+        "Production": "NOT READY"
+    },
+    "local.playwright": {
+        "Registration": "PASS",
+        "Bootstrap": "PASS",
+        "Execution": "PASS",
+        "Latency": "2214 ms",
+        "Regression": "PASS",
+        "Production": "READY"
+    },
+    "mcp.context7": {
+        "Registration": "PASS",
+        "Bootstrap": "PASS",
+        "Execution": "FAIL",
+        "Latency": "1 ms",
+        "Regression": "FAIL",
+        "Production": "NOT READY"
+    },
+    "mcp.tavily": {
+        "Registration": "PASS",
+        "Bootstrap": "PASS",
+        "Execution": "FAIL",
+        "Latency": "0 ms",
+        "Regression": "FAIL",
+        "Production": "NOT READY"
+    },
+    "mcp.firecrawl": {
+        "Registration": "PASS",
+        "Bootstrap": "PASS",
+        "Execution": "FAIL",
+        "Latency": "0 ms",
+        "Regression": "FAIL",
+        "Production": "NOT READY"
+    },
+    "mcp.penpot": {
+        "Registration": "PASS",
+        "Bootstrap": "PASS",
+        "Execution": "FAIL",
+        "Latency": "0 ms",
+        "Regression": "FAIL",
+        "Production": "NOT READY"
+    },
+    "local.spline": {
+        "Registration": "PASS",
+        "Bootstrap": "PASS",
+        "Execution": "PASS",
+        "Latency": "817 ms",
+        "Regression": "PASS",
+        "Production": "READY"
+    },
+    "local.gosom": {
+        "Registration": "PASS",
+        "Bootstrap": "PASS",
+        "Execution": "PASS",
+        "Latency": "14436 ms",
+        "Regression": "PASS",
+        "Production": "READY"
+    }
+}

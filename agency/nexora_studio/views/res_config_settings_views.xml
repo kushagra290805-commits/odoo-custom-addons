@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.nexora</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="90"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Nexora Studio" string="Nexora Studio" name="nexora_studio" groups="nexora_studio.group_nexora_administrator">
+                    <block title="General Settings" name="nexora_general_settings">
+                        <setting string="Workspace Root Directory" help="The local filesystem directory where all Builder Session workspaces will be created.">
+                            <field name="nexora_workspace_root" placeholder="e.g. D:\NexoraStudio\workspaces" style="width: 100%;"/>
+                        </setting>
+                    </block>
+                    
+                    <block title="Routing Configuration" name="nexora_routing_settings">
+                        <setting string="Simple Tasks" help="Comma-separated providers (e.g. openrouter,ollama)">
+                            <field name="nexora_cost_router_tier_simple" style="width: 100%;"/>
+                        </setting>
+                        <setting string="Medium Tasks" help="Comma-separated providers">
+                            <field name="nexora_cost_router_tier_medium" style="width: 100%;"/>
+                        </setting>
+                        <setting string="Complex Tasks" help="Comma-separated providers">
+                            <field name="nexora_cost_router_tier_complex" style="width: 100%;"/>
+                        </setting>
+                    </block>
+
+                    <block title="AI Provider Configuration" name="nexora_ai_providers_redirect">
+                        <div class="row mt16">
+                            <div class="alert alert-info" role="alert">
+                                <strong>AI Provider configuration has moved to:</strong><br/>
+                                Nexora Administration → Configuration → AI Providers
+                            </div>
+                        </div>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_nexora_config_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="context">{'module' : 'nexora_studio', 'bin_size': False}</field>
+    </record>
+</odoo>

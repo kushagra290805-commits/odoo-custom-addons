@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.log
+*.tmp
+.DS_Store
+graphify-out/
+.tmp_val_workspace/
+scratch/
+
+# Phase 29 audit and release artifacts
+audit_sweep_1_results.json
+.coverage
+current_release_candidate_manifest.md
+diff_utf8.txt
+final_pre_runtime_status.md
+full_uncommitted_diff.txt
+pre_phase29_worktree.patch
+pre_phase29_worktree_manifest.txt

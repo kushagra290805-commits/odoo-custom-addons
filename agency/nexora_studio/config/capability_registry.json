@@ -1,0 +1,313 @@
+{
+  "capabilities": [
+    {
+      "id": "search.web",
+      "required_inputs": [
+        "query"
+      ],
+      "produced_outputs": [
+        "search_results"
+      ],
+      "prerequisites": [],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.01,
+      "estimated_latency": 800,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.95
+    },
+    {
+      "id": "crawl.website",
+      "required_inputs": [
+        "url"
+      ],
+      "produced_outputs": [
+        "scraped_content"
+      ],
+      "prerequisites": [
+        "search.web"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.05,
+      "estimated_latency": 1200,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.9
+    },
+    {
+      "id": "documentation.search",
+      "required_inputs": [
+        "query"
+      ],
+      "produced_outputs": [
+        "doc_references"
+      ],
+      "prerequisites": [
+        "crawl.website"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.02,
+      "estimated_latency": 500,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.95
+    },
+    {
+      "id": "repo.read",
+      "required_inputs": [],
+      "produced_outputs": [
+        "repo_metadata"
+      ],
+      "prerequisites": [],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.0,
+      "estimated_latency": 300,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.99
+    },
+    {
+      "id": "animation.reference",
+      "required_inputs": [
+        "query"
+      ],
+      "produced_outputs": [
+        "animation_docs"
+      ],
+      "prerequisites": [
+        "documentation.search"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.0,
+      "estimated_latency": 400,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.9
+    },
+    {
+      "id": "generate.component",
+      "required_inputs": [
+        "doc_references",
+        "animation_docs",
+        "repo_metadata"
+      ],
+      "produced_outputs": [
+        "3d_component_code"
+      ],
+      "prerequisites": [
+        "documentation.search",
+        "animation.reference",
+        "repo.read"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.2,
+      "estimated_latency": 3000,
+      "execution_type": "compute",
+      "side_effects": false,
+      "confidence_weight": 0.85
+    },
+    {
+      "id": "generate.page",
+      "required_inputs": [
+        "3d_component_code"
+      ],
+      "produced_outputs": [
+        "landing_page_html"
+      ],
+      "prerequisites": [
+        "generate.component"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.5,
+      "estimated_latency": 5000,
+      "execution_type": "compute",
+      "side_effects": false,
+      "confidence_weight": 0.8
+    },
+    {
+      "id": "validate.output",
+      "required_inputs": [
+        "landing_page_html"
+      ],
+      "produced_outputs": [
+        "validation_report"
+      ],
+      "prerequisites": [
+        "generate.page",
+        "code.lint",
+        "security.validation",
+        "browser.visual_validation"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.1,
+      "estimated_latency": 2000,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.95
+    },
+    {
+      "id": "code.format",
+      "required_inputs": [
+        "3d_component_code"
+      ],
+      "produced_outputs": [
+        "format_report"
+      ],
+      "prerequisites": [
+        "generate.page"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.01,
+      "estimated_latency": 500,
+      "execution_type": "compute",
+      "side_effects": true,
+      "confidence_weight": 0.99
+    },
+    {
+      "id": "code.lint",
+      "required_inputs": [
+        "format_report"
+      ],
+      "produced_outputs": [
+        "lint_report"
+      ],
+      "prerequisites": [
+        "code.format"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.02,
+      "estimated_latency": 800,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.99
+    },
+    {
+      "id": "security.validation",
+      "required_inputs": [
+        "landing_page_html"
+      ],
+      "produced_outputs": [
+        "security_report"
+      ],
+      "prerequisites": [
+        "generate.page"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.05,
+      "estimated_latency": 1500,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.9
+    },
+    {
+      "id": "browser.visual_validation",
+      "required_inputs": [
+        "landing_page_html"
+      ],
+      "produced_outputs": [
+        "visual_validation_report"
+      ],
+      "prerequisites": [
+        "generate.page"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.1,
+      "estimated_latency": 4000,
+      "execution_type": "read",
+      "side_effects": false,
+      "confidence_weight": 0.85
+    },
+    {
+      "id": "github.commit",
+      "required_inputs": [
+        "repo_metadata"
+      ],
+      "produced_outputs": [
+        "commit_hash"
+      ],
+      "prerequisites": [
+        "repo.read"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.0,
+      "estimated_latency": 2000,
+      "execution_type": "compute",
+      "side_effects": true,
+      "confidence_weight": 0.99
+    },
+    {
+      "id": "github.pr",
+      "required_inputs": [
+        "commit_hash"
+      ],
+      "produced_outputs": [
+        "pr_url"
+      ],
+      "prerequisites": [
+        "github.commit"
+      ],
+      "optional_prerequisites": [],
+      "compatible_with": [
+        "*"
+      ],
+      "incompatible_with": [],
+      "estimated_cost": 0.0,
+      "estimated_latency": 1500,
+      "execution_type": "compute",
+      "side_effects": true,
+      "confidence_weight": 0.99
+    }
+  ]
+}

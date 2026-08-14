@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_template_compatibility_list" model="ir.ui.view">
+        <field name="name">nexora.template_compatibility.list</field>
+        <field name="model">nexora.template_compatibility</field>
+        <field name="arch" type="xml">
+            <list string="Compatibility Matrix">
+                <field name="name"/>
+                <field name="frontend_template_id"/>
+                <field name="backend_template_id"/>
+                <field name="compatibility_level" widget="badge"/>
+                <field name="notes"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_template_compatibility_form" model="ir.ui.view">
+        <field name="name">nexora.template_compatibility.form</field>
+        <field name="model">nexora.template_compatibility</field>
+        <field name="arch" type="xml">
+            <form string="Compatibility Pair">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="frontend_template_id"/>
+                            <field name="backend_template_id"/>
+                        </group>
+                        <group>
+                            <field name="compatibility_level"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <group string="Integration Notes">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_template_compatibility_search" model="ir.ui.view">
+        <field name="name">nexora.template_compatibility.search</field>
+        <field name="model">nexora.template_compatibility</field>
+        <field name="arch" type="xml">
+            <search string="Search Compatibility Pairs">
+                <field name="frontend_template_id"/>
+                <field name="backend_template_id"/>
+                <filter string="Verified" name="verified" domain="[('compatibility_level', '=', 'verified')]"/>
+                <separator/>
+                <filter string="Group By Level" name="group_by_level" context="{'group_by': 'compatibility_level'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_template_compatibility" model="ir.actions.act_window">
+        <field name="name">Compatibility Matrix</field>
+        <field name="res_model">nexora.template_compatibility</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_template_compatibility_search"/>
+    </record>
+
+    <menuitem id="menu_template_compatibility"
+              name="Compatibility Matrix"
+              parent="menu_template_store_templates"
+              action="action_template_compatibility"
+              sequence="40"/>
+</odoo>

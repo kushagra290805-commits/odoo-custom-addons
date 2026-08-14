@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_template_frontend_list" model="ir.ui.view">
+        <field name="name">nexora.template_frontend.list</field>
+        <field name="model">nexora.template_frontend</field>
+        <field name="arch" type="xml">
+            <list string="Frontend Templates">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="framework" widget="badge"/>
+                <field name="subfolder_path"/>
+                <field name="git_repo_url"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_template_frontend_form" model="ir.ui.view">
+        <field name="name">nexora.template_frontend.form</field>
+        <field name="model">nexora.template_frontend</field>
+        <field name="arch" type="xml">
+            <form string="Frontend Template">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="framework"/>
+                            <field name="subfolder_path"/>
+                        </group>
+                        <group>
+                            <field name="git_repo_url"/>
+                            <field name="metadata_id"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Versions" name="versions">
+                            <field name="version_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="commit_hash"/>
+                                    <field name="release_date"/>
+                                    <field name="is_latest" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Backend Compatibility" name="compatibility">
+                            <field name="compatibility_ids">
+                                <list editable="bottom">
+                                    <field name="backend_template_id"/>
+                                    <field name="compatibility_level" widget="badge"/>
+                                    <field name="notes"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Description" name="desc">
+                            <field name="description"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_template_frontend_search" model="ir.ui.view">
+        <field name="name">nexora.template_frontend.search</field>
+        <field name="model">nexora.template_frontend</field>
+        <field name="arch" type="xml">
+            <search string="Search Frontend Templates">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="framework"/>
+                <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+                <separator/>
+                <filter string="Group By Framework" name="group_by_framework" context="{'group_by': 'framework'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_template_frontend" model="ir.actions.act_window">
+        <field name="name">Frontend Templates</field>
+        <field name="res_model">nexora.template_frontend</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_template_frontend_search"/>
+    </record>
+
+    <menuitem id="menu_template_frontend"
+              name="Frontend Templates"
+              parent="menu_template_store_templates"
+              action="action_template_frontend"
+              sequence="10"/>
+</odoo>

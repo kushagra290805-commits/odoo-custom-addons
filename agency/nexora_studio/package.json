@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@splinetool/loader": "^1.12.98",
+    "@splinetool/runtime": "^1.12.98",
+    "canvas": "^3.2.3",
+    "jsdom": "^29.1.1"
+  }
+}

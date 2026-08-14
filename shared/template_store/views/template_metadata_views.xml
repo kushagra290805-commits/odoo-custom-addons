@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_template_metadata_list" model="ir.ui.view">
+        <field name="name">nexora.template_metadata.list</field>
+        <field name="model">nexora.template_metadata</field>
+        <field name="arch" type="xml">
+            <list string="Metadata Schemas">
+                <field name="name"/>
+                <field name="schema_version"/>
+                <field name="author"/>
+                <field name="tags"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_template_metadata_form" model="ir.ui.view">
+        <field name="name">nexora.template_metadata.form</field>
+        <field name="model">nexora.template_metadata</field>
+        <field name="arch" type="xml">
+            <form string="Metadata Schema">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="schema_version"/>
+                            <field name="author"/>
+                        </group>
+                        <group>
+                            <field name="tags"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Schema JSON" name="json">
+                            <field name="raw_json" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_template_metadata_search" model="ir.ui.view">
+        <field name="name">nexora.template_metadata.search</field>
+        <field name="model">nexora.template_metadata</field>
+        <field name="arch" type="xml">
+            <search string="Search Metadata Schemas">
+                <field name="name"/>
+                <field name="tags"/>
+                <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_template_metadata" model="ir.actions.act_window">
+        <field name="name">Metadata Definitions</field>
+        <field name="res_model">nexora.template_metadata</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_template_metadata_search"/>
+    </record>
+
+    <menuitem id="menu_template_metadata"
+              name="Metadata Definitions"
+              parent="menu_template_store_templates"
+              action="action_template_metadata"
+              sequence="50"/>
+</odoo>

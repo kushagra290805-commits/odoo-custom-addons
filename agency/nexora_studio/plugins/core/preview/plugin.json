@@ -1,0 +1,21 @@
+﻿{
+  "capability_code": "mcp.tool.preview",
+  "display_name": "Preview Tool",
+  "category": "tool",
+  "version": "1.0.0",
+  "provider": "nexora",
+  "author": "Nexora Studio",
+  "implementation_model": "nexora.tool.preview",
+  "dependencies": [],
+  "optional_dependencies": [],
+  "permissions": [],
+  "minimum_runtime_version": "1.0.0",
+  "metadata_version": "1.0",
+  "runtime_version": "1.0.0",
+  "supported_platforms": ["windows", "linux", "macos"],
+  "supports_local": true,
+  "supports_remote": true,
+  "supports_async": true
+}
+
+

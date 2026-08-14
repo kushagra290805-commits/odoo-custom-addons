@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Generator Type List View -->
+    <record id="view_generator_type_list" model="ir.ui.view">
+        <field name="name">nexora.generator_type.list</field>
+        <field name="model">nexora.generator_type</field>
+        <field name="arch" type="xml">
+            <list string="Generator Types">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="category"/>
+                <field name="default_pipeline_id"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Generator Type Form View -->
+    <record id="view_generator_type_form" model="ir.ui.view">
+        <field name="name">nexora.generator_type.form</field>
+        <field name="model">nexora.generator_type</field>
+        <field name="arch" type="xml">
+            <form string="Generator Type">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" placeholder="e.g. Fullstack Web Application"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="category"/>
+                        </group>
+                        <group>
+                            <field name="default_pipeline_id"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Capabilities" name="capabilities">
+                            <field name="capability_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="code"/>
+                                    <field name="description"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Description" name="description">
+                            <field name="description" placeholder="Description of this generator architecture..."/>
+                        </page>
+                        <page string="Metadata JSON" name="metadata">
+                            <field name="metadata_json" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Generator Capability List View -->
+    <record id="view_generator_capability_list" model="ir.ui.view">
+        <field name="name">nexora.generator_capability.list</field>
+        <field name="model">nexora.generator_capability</field>
+        <field name="arch" type="xml">
+            <list string="Capabilities">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="generator_type_id"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_generator_type" model="ir.actions.act_window">
+        <field name="name">Generator Types</field>
+        <field name="res_model">nexora.generator_type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_generator_capability" model="ir.actions.act_window">
+        <field name="name">Capabilities</field>
+        <field name="res_model">nexora.generator_capability</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menu items integrated into Template Store Generation Engine category -->
+    <menuitem id="menu_generator_types"
+              name="Generator Types"
+              parent="menu_template_store_generation"
+              action="action_generator_type"
+              sequence="30"/>
+
+    <menuitem id="menu_generator_capabilities"
+              name="Capabilities"
+              parent="menu_template_store_generation"
+              action="action_generator_capability"
+              sequence="40"/>
+</odoo>

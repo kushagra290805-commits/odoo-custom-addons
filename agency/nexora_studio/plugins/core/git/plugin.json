@@ -1,0 +1,21 @@
+﻿{
+  "capability_code": "mcp.tool.git",
+  "display_name": "Git Tool",
+  "category": "tool",
+  "version": "1.0.0",
+  "provider": "nexora",
+  "author": "Nexora Studio",
+  "implementation_model": "nexora.tool.git",
+  "dependencies": ["mcp.tool.terminal"],
+  "optional_dependencies": [],
+  "permissions": ["sys.exec", "fs.read", "fs.write"],
+  "minimum_runtime_version": "1.0.0",
+  "metadata_version": "1.0",
+  "runtime_version": "1.0.0",
+  "supported_platforms": ["windows", "linux", "macos"],
+  "supports_local": true,
+  "supports_remote": false,
+  "supports_async": false
+}
+
+

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Generation Pipeline List View -->
+    <record id="view_generation_pipeline_list" model="ir.ui.view">
+        <field name="name">nexora.generation_pipeline.list</field>
+        <field name="model">nexora.generation_pipeline</field>
+        <field name="arch" type="xml">
+            <list string="Generation Pipelines">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="generator_type_id"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Generation Pipeline Form View -->
+    <record id="view_generation_pipeline_form" model="ir.ui.view">
+        <field name="name">nexora.generation_pipeline.form</field>
+        <field name="model">nexora.generation_pipeline</field>
+        <field name="arch" type="xml">
+            <form string="Generation Pipeline">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" placeholder="e.g. Standard Fullstack Generation Pipeline"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="generator_type_id"/>
+                        </group>
+                        <group>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Stages" name="stages">
+                            <field name="stage_ids">
+                                <list editable="bottom" default_order="sequence asc">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="code"/>
+                                    <field name="stage_type"/>
+                                    <field name="service_name"/>
+                                    <field name="can_rollback"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Description" name="description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Metadata JSON" name="metadata">
+                            <field name="metadata_json" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Generation Stage List View -->
+    <record id="view_generation_stage_list" model="ir.ui.view">
+        <field name="name">nexora.generation_stage.list</field>
+        <field name="model">nexora.generation_stage</field>
+        <field name="arch" type="xml">
+            <list string="Pipeline Stages">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="pipeline_id"/>
+                <field name="stage_type"/>
+                <field name="service_name"/>
+                <field name="can_rollback"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_generation_pipeline" model="ir.actions.act_window">
+        <field name="name">Pipelines</field>
+        <field name="res_model">nexora.generation_pipeline</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_generation_stage" model="ir.actions.act_window">
+        <field name="name">Stages</field>
+        <field name="res_model">nexora.generation_stage</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menu items integrated into Template Store Generation Engine category -->
+    <menuitem id="menu_generation_pipelines"
+              name="Pipelines"
+              parent="menu_template_store_generation"
+              action="action_generation_pipeline"
+              sequence="20"/>
+
+    <menuitem id="menu_generation_stages"
+              name="Stages"
+              parent="menu_template_store_generation"
+              action="action_generation_stage"
+              sequence="50"/>
+</odoo>

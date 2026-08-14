@@ -1,0 +1,1031 @@
+[
+    {
+        "timestamp": "2026-07-14T06:52:45.655732",
+        "model": "ir.ui.menu",
+        "database_id": 295,
+        "name": "Generator Types",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 295,
+            "display_name": "Generator Types",
+            "name": "Generator Types",
+            "active": true,
+            "sequence": 10,
+            "child_id": [],
+            "parent_id": false,
+            "parent_path": "295/",
+            "group_ids": [],
+            "complete_name": "Generator Types",
+            "web_icon": false,
+            "action": "ir.actions.act_window,385",
+            "web_icon_data": false,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-14T04:50:00.303925"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.658236",
+        "model": "ir.ui.menu",
+        "database_id": 297,
+        "name": "Pipelines",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 297,
+            "display_name": "Pipelines",
+            "name": "Pipelines",
+            "active": true,
+            "sequence": 10,
+            "child_id": [],
+            "parent_id": false,
+            "parent_path": "297/",
+            "group_ids": [],
+            "complete_name": "Pipelines",
+            "web_icon": false,
+            "action": "ir.actions.act_window,387",
+            "web_icon_data": false,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-14T04:50:00.303925"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.660239",
+        "model": "ir.ui.menu",
+        "database_id": 299,
+        "name": "Generation Jobs",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 299,
+            "display_name": "Generation Jobs",
+            "name": "Generation Jobs",
+            "active": true,
+            "sequence": 10,
+            "child_id": [],
+            "parent_id": false,
+            "parent_path": "299/",
+            "group_ids": [],
+            "complete_name": "Generation Jobs",
+            "web_icon": false,
+            "action": "ir.actions.act_window,389",
+            "web_icon_data": false,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-14T04:50:00.303925"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.663243",
+        "model": "ir.ui.menu",
+        "database_id": 298,
+        "name": "Stages",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 298,
+            "display_name": "Stages",
+            "name": "Stages",
+            "active": true,
+            "sequence": 20,
+            "child_id": [],
+            "parent_id": false,
+            "parent_path": "298/",
+            "group_ids": [],
+            "complete_name": "Stages",
+            "web_icon": false,
+            "action": "ir.actions.act_window,388",
+            "web_icon_data": false,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-14T04:50:00.303925"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.680260",
+        "model": "ir.actions.act_window",
+        "database_id": 389,
+        "name": "Generation Jobs",
+        "xml_id": null,
+        "incoming_references": [
+            "1 x ir.ui.menu.action"
+        ],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)",
+            "search_view_id -> ir.ui.view (ID: 1966)"
+        ],
+        "field_values": {
+            "id": 389,
+            "display_name": "Generation Jobs",
+            "name": "Generation Jobs",
+            "type": "ir.actions.act_window",
+            "xml_id": "",
+            "path": false,
+            "help": false,
+            "binding_model_id": false,
+            "binding_type": "action",
+            "binding_view_types": "list,form",
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921",
+            "view_id": false,
+            "domain": false,
+            "context": "{}",
+            "res_id": 0,
+            "res_model": "nexora.generation_job",
+            "target": "current",
+            "view_mode": "list,form",
+            "mobile_view_mode": "kanban",
+            "usage": false,
+            "view_ids": [],
+            "views": [
+                [
+                    false,
+                    "list"
+                ],
+                [
+                    false,
+                    "form"
+                ]
+            ],
+            "limit": 80,
+            "group_ids": [],
+            "search_view_id": [
+                1966,
+                "nexora.generation_job.search"
+            ],
+            "embedded_action_ids": [],
+            "filter": false,
+            "cache": true
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.682263",
+        "model": "ir.actions.act_window",
+        "database_id": 385,
+        "name": "Generator Types",
+        "xml_id": null,
+        "incoming_references": [
+            "1 x ir.ui.menu.action"
+        ],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 385,
+            "display_name": "Generator Types",
+            "name": "Generator Types",
+            "type": "ir.actions.act_window",
+            "xml_id": "",
+            "path": false,
+            "help": false,
+            "binding_model_id": false,
+            "binding_type": "action",
+            "binding_view_types": "list,form",
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921",
+            "view_id": false,
+            "domain": false,
+            "context": "{}",
+            "res_id": 0,
+            "res_model": "nexora.generator_type",
+            "target": "current",
+            "view_mode": "list,form",
+            "mobile_view_mode": "kanban",
+            "usage": false,
+            "view_ids": [],
+            "views": [
+                [
+                    false,
+                    "list"
+                ],
+                [
+                    false,
+                    "form"
+                ]
+            ],
+            "limit": 80,
+            "group_ids": [],
+            "search_view_id": false,
+            "embedded_action_ids": [],
+            "filter": false,
+            "cache": true
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.684263",
+        "model": "ir.actions.act_window",
+        "database_id": 387,
+        "name": "Pipelines",
+        "xml_id": null,
+        "incoming_references": [
+            "1 x ir.ui.menu.action"
+        ],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 387,
+            "display_name": "Pipelines",
+            "name": "Pipelines",
+            "type": "ir.actions.act_window",
+            "xml_id": "",
+            "path": false,
+            "help": false,
+            "binding_model_id": false,
+            "binding_type": "action",
+            "binding_view_types": "list,form",
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921",
+            "view_id": false,
+            "domain": false,
+            "context": "{}",
+            "res_id": 0,
+            "res_model": "nexora.generation_pipeline",
+            "target": "current",
+            "view_mode": "list,form",
+            "mobile_view_mode": "kanban",
+            "usage": false,
+            "view_ids": [],
+            "views": [
+                [
+                    false,
+                    "list"
+                ],
+                [
+                    false,
+                    "form"
+                ]
+            ],
+            "limit": 80,
+            "group_ids": [],
+            "search_view_id": false,
+            "embedded_action_ids": [],
+            "filter": false,
+            "cache": true
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.686263",
+        "model": "ir.actions.act_window",
+        "database_id": 388,
+        "name": "Stages",
+        "xml_id": null,
+        "incoming_references": [
+            "1 x ir.ui.menu.action"
+        ],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 388,
+            "display_name": "Stages",
+            "name": "Stages",
+            "type": "ir.actions.act_window",
+            "xml_id": "",
+            "path": false,
+            "help": false,
+            "binding_model_id": false,
+            "binding_type": "action",
+            "binding_view_types": "list,form",
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921",
+            "view_id": false,
+            "domain": false,
+            "context": "{}",
+            "res_id": 0,
+            "res_model": "nexora.generation_stage",
+            "target": "current",
+            "view_mode": "list,form",
+            "mobile_view_mode": "kanban",
+            "usage": false,
+            "view_ids": [],
+            "views": [
+                [
+                    false,
+                    "list"
+                ],
+                [
+                    false,
+                    "form"
+                ]
+            ],
+            "limit": 80,
+            "group_ids": [],
+            "search_view_id": false,
+            "embedded_action_ids": [],
+            "filter": false,
+            "cache": true
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.688766",
+        "model": "nexora.generation_stage",
+        "database_id": 1,
+        "name": "Validate Templates",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 1,
+            "display_name": "Validate Templates",
+            "name": "Validate Templates",
+            "code": "validate",
+            "pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "sequence": 10,
+            "stage_type": "validation",
+            "service_name": "nexora.validation_service",
+            "can_rollback": false,
+            "description": "Verifies template references and schema compatibility.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.689770",
+        "model": "nexora.generation_stage",
+        "database_id": 2,
+        "name": "Prepare Workspace",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 2,
+            "display_name": "Prepare Workspace",
+            "name": "Prepare Workspace",
+            "code": "prepare",
+            "pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "sequence": 20,
+            "stage_type": "preparation",
+            "service_name": "nexora.workspace_preparation_service",
+            "can_rollback": true,
+            "description": "Validates and initializes the target workspace directory on the filesystem.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.691778",
+        "model": "nexora.generation_stage",
+        "database_id": 3,
+        "name": "Clone Frontend Template",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 3,
+            "display_name": "Clone Frontend Template",
+            "name": "Clone Frontend Template",
+            "code": "clone_frontend",
+            "pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "sequence": 30,
+            "stage_type": "cloning",
+            "service_name": "nexora.generation_service",
+            "can_rollback": true,
+            "description": "Clones reusable frontend assets from Template Store.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.691778",
+        "model": "nexora.generation_stage",
+        "database_id": 4,
+        "name": "Clone Backend Template",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 4,
+            "display_name": "Clone Backend Template",
+            "name": "Clone Backend Template",
+            "code": "clone_backend",
+            "pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "sequence": 40,
+            "stage_type": "cloning",
+            "service_name": "nexora.generation_service",
+            "can_rollback": true,
+            "description": "Clones reusable backend service from Template Store.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.692781",
+        "model": "nexora.generation_stage",
+        "database_id": 5,
+        "name": "Merge Frontend + Backend",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 5,
+            "display_name": "Merge Frontend + Backend",
+            "name": "Merge Frontend + Backend",
+            "code": "merge",
+            "pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "sequence": 50,
+            "stage_type": "merge",
+            "service_name": "nexora.merge_service",
+            "can_rollback": true,
+            "description": "Merges both directory trees into unified project hierarchy.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.693779",
+        "model": "nexora.generation_stage",
+        "database_id": 6,
+        "name": "Replace Variables",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 6,
+            "display_name": "Replace Variables",
+            "name": "Replace Variables",
+            "code": "variables",
+            "pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "sequence": 60,
+            "stage_type": "variable",
+            "service_name": "nexora.variable_engine",
+            "can_rollback": true,
+            "description": "Replaces placeholders e.g. {{PROJECT_NAME}} across source code.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.693779",
+        "model": "nexora.generation_stage",
+        "database_id": 7,
+        "name": "Generate Configuration",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 7,
+            "display_name": "Generate Configuration",
+            "name": "Generate Configuration",
+            "code": "config",
+            "pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "sequence": 70,
+            "stage_type": "config",
+            "service_name": "nexora.variable_engine",
+            "can_rollback": true,
+            "description": "Synthesizes environment variables, .env, and runtime manifests.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.694779",
+        "model": "nexora.generation_stage",
+        "database_id": 8,
+        "name": "Finalize Workspace",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 8,
+            "display_name": "Finalize Workspace",
+            "name": "Finalize Workspace",
+            "code": "finalize",
+            "pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "sequence": 80,
+            "stage_type": "finalize",
+            "service_name": "nexora.workspace_preparation_service",
+            "can_rollback": false,
+            "description": "Seals workspace generation and prepares for Builder Session attachment.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.695795",
+        "model": "nexora.generator_capability",
+        "database_id": 2,
+        "name": "Dual-Repository Template Merging",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "generator_type_id -> nexora.generator_type (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 2,
+            "display_name": "Dual-Repository Template Merging",
+            "name": "Dual-Repository Template Merging",
+            "code": "dual_repo_merge",
+            "generator_type_id": [
+                1,
+                "Fullstack Web Application"
+            ],
+            "description": "Combines independent frontend and backend directory trees into a unified project workspace.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.695795",
+        "model": "nexora.generator_capability",
+        "database_id": 3,
+        "name": "Environment Configuration Generation",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "generator_type_id -> nexora.generator_type (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 3,
+            "display_name": "Environment Configuration Generation",
+            "name": "Environment Configuration Generation",
+            "code": "env_config_generation",
+            "generator_type_id": [
+                1,
+                "Fullstack Web Application"
+            ],
+            "description": "Automated synthesis of .env, docker-compose.yml, and config files from job parameters.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.695795",
+        "model": "nexora.generator_capability",
+        "database_id": 4,
+        "name": "Transactional Generation Rollback",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "generator_type_id -> nexora.generator_type (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 4,
+            "display_name": "Transactional Generation Rollback",
+            "name": "Transactional Generation Rollback",
+            "code": "transactional_rollback",
+            "generator_type_id": [
+                1,
+                "Fullstack Web Application"
+            ],
+            "description": "Supports clean filesystem and state cleanup if generation pipeline encounters an exception.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.696795",
+        "model": "nexora.generator_capability",
+        "database_id": 1,
+        "name": "Variable Substitution Engine",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "generator_type_id -> nexora.generator_type (ID: 1)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 1,
+            "display_name": "Variable Substitution Engine",
+            "name": "Variable Substitution Engine",
+            "code": "variable_substitution",
+            "generator_type_id": [
+                1,
+                "Fullstack Web Application"
+            ],
+            "description": "Dynamic placeholder replacement ({{VAR}} / ${VAR}) across codebase files.",
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.700314",
+        "model": "nexora.generation_pipeline",
+        "database_id": 1,
+        "name": "Standard Fullstack Generation Pipeline",
+        "xml_id": null,
+        "incoming_references": [
+            "1 x nexora.generator_type.default_pipeline_id",
+            "8 x nexora.generation_stage.pipeline_id"
+        ],
+        "outgoing_references": [
+            "generator_type_id -> nexora.generator_type (ID: 1)",
+            "stage_ids -> nexora.generation_stage (8 records)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 1,
+            "display_name": "Standard Fullstack Generation Pipeline",
+            "name": "Standard Fullstack Generation Pipeline",
+            "code": "fullstack_standard",
+            "generator_type_id": [
+                1,
+                "Fullstack Web Application"
+            ],
+            "description": "Complete 8-stage generation workflow from validation and cloning to merging, variable substitution, and finalization.",
+            "stage_ids": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+            ],
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.701313",
+        "model": "nexora.generator_type",
+        "database_id": 3,
+        "name": "Backend API Service",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 3,
+            "display_name": "Backend API Service",
+            "name": "Backend API Service",
+            "code": "backend_api",
+            "category": "backend",
+            "description": "Standalone backend service API template (Python FastAPI, Node Express, Go) without frontend assets.",
+            "default_pipeline_id": false,
+            "capability_ids": [],
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.702317",
+        "model": "nexora.generator_type",
+        "database_id": 2,
+        "name": "Frontend SPA Only",
+        "xml_id": null,
+        "incoming_references": [],
+        "outgoing_references": [
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 2,
+            "display_name": "Frontend SPA Only",
+            "name": "Frontend SPA Only",
+            "code": "frontend_spa",
+            "category": "frontend",
+            "description": "Single-page web application template (Vite, React, Vue, Next.js) without backend services.",
+            "default_pipeline_id": false,
+            "capability_ids": [],
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    },
+    {
+        "timestamp": "2026-07-14T06:52:45.703331",
+        "model": "nexora.generator_type",
+        "database_id": 1,
+        "name": "Fullstack Web Application",
+        "xml_id": null,
+        "incoming_references": [
+            "4 x nexora.generator_capability.generator_type_id",
+            "1 x nexora.generation_pipeline.generator_type_id"
+        ],
+        "outgoing_references": [
+            "default_pipeline_id -> nexora.generation_pipeline (ID: 1)",
+            "capability_ids -> nexora.generator_capability (4 records)",
+            "create_uid -> res.users (ID: 1)",
+            "write_uid -> res.users (ID: 1)"
+        ],
+        "field_values": {
+            "id": 1,
+            "display_name": "Fullstack Web Application",
+            "name": "Fullstack Web Application",
+            "code": "fullstack_web",
+            "category": "fullstack",
+            "description": "Standard fullstack architecture separating SPA frontend template and API backend template with automated merging and variable substitution.",
+            "default_pipeline_id": [
+                1,
+                "Standard Fullstack Generation Pipeline"
+            ],
+            "capability_ids": [
+                2,
+                3,
+                4,
+                1
+            ],
+            "metadata_json": "{}",
+            "active": true,
+            "create_uid": [
+                1,
+                "OdooBot"
+            ],
+            "create_date": "2026-07-13T18:31:56.739921",
+            "write_uid": [
+                1,
+                "OdooBot"
+            ],
+            "write_date": "2026-07-13T18:31:56.739921"
+        }
+    }
+]

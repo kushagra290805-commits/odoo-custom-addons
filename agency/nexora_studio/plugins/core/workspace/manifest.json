@@ -1,0 +1,11 @@
+{
+    "capability_code": "mcp.tool.workspace",
+    "display_name": "Workspace Tool",
+    "description": "Read workspace metadata and configuration.",
+    "version": "1.0.0",
+    "provider": "core",
+    "category": "tool",
+    "implementation_model": "nexora.tool.workspace",
+    "priority": 10,
+    "dependencies": []
+}

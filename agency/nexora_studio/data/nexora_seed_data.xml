@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        
+        <!-- Generator Types -->
+        <record id="seed_gen_type_nextjs" model="nexora.generator_type">
+            <field name="name">Next.js App Router (Enterprise)</field>
+            <field name="code">nextjs_app_ent</field>
+            <field name="category">frontend</field>
+            <field name="description">High performance enterprise frontend framework leveraging React 18, App Router, and TailwindCSS.</field>
+        </record>
+        
+        <!-- Generation Pipelines -->
+        <record id="seed_pipeline_std_nextjs" model="nexora.generation_pipeline">
+            <field name="name">Standard Next.js Pipeline</field>
+            <field name="code">pipeline_nextjs_std</field>
+            <field name="generator_type_id" ref="seed_gen_type_nextjs"/>
+            <field name="description">Default pipeline for generating standard Next.js applications.</field>
+        </record>
+        
+        <!-- Frontend Templates -->
+        <record id="seed_template_elite_dental" model="nexora.template_frontend">
+            <field name="name">Elite Dental Base</field>
+            <field name="code">tpl_elite_dental</field>
+            <field name="framework">nextjs</field>
+            <field name="git_repo_url">https://github.com/nexora-agency/elite-dental-template.git</field>
+            <field name="subfolder_path">templates/healthcare/elite_dental</field>
+        </record>
+        
+        <record id="seed_template_nova_fitness" model="nexora.template_frontend">
+            <field name="name">Nova Fitness Portal</field>
+            <field name="code">tpl_nova_fitness</field>
+            <field name="framework">nextjs</field>
+            <field name="git_repo_url">https://github.com/nexora-agency/nova-fitness-portal.git</field>
+            <field name="subfolder_path">templates/fitness/nova</field>
+        </record>
+
+        <record id="seed_template_skyline_builders" model="nexora.template_frontend">
+            <field name="name">Skyline Architecture Portfolio</field>
+            <field name="code">tpl_skyline_portfolio</field>
+            <field name="framework">nextjs</field>
+            <field name="git_repo_url">https://github.com/nexora-agency/skyline-portfolio.git</field>
+            <field name="subfolder_path">templates/construction/skyline</field>
+        </record>
+
+        <!-- Builder Configurations (Client Blueprints) -->
+        <record id="seed_config_elite_dental_prod" model="nexora.builder_configuration">
+            <field name="name">Elite Dental Clinic - Production</field>
+            <field name="semantic_version">1.0.0</field>
+            <field name="environment">production</field>
+            <field name="description">Production blueprint for Elite Dental Clinic.</field>
+            <field name="status">locked</field>
+        </record>
+        
+        <record id="seed_config_nova_fitness_staging" model="nexora.builder_configuration">
+            <field name="name">Nova Fitness - Staging Sandbox</field>
+            <field name="semantic_version">1.2.0-rc1</field>
+            <field name="environment">testing</field>
+            <field name="description">Staging testing environment for the new scheduling feature.</field>
+            <field name="status">locked</field>
+        </record>
+        
+        <record id="seed_config_skyline_dev" model="nexora.builder_configuration">
+            <field name="name">Skyline Builders - Development Iteration</field>
+            <field name="semantic_version">2.1.0-draft</field>
+            <field name="environment">development</field>
+            <field name="description">Active development sprint for Skyline Builders new portfolio section.</field>
+            <field name="status">draft</field>
+        </record>
+
+    </data>
+</odoo>

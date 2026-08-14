@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Template Metadata Specifications -->
+        <record id="metadata_fullstack_std" model="nexora.template_metadata">
+            <field name="name">Standard Fullstack Metadata Specification</field>
+            <field name="schema_version">1.0</field>
+            <field name="author">Nexora Architecture Team</field>
+            <field name="tags">fullstack,spa,rest</field>
+            <field name="raw_json"><![CDATA[{
+  "required_variables": ["PROJECT_NAME", "PORT", "API_URL"],
+  "default_ports": {"frontend": 3000, "backend": 8000},
+  "defaults": {
+    "PROJECT_NAME": "NexoraClientApp",
+    "PORT": "8080",
+    "API_URL": "http://localhost:8000"
+  }
+}]]></field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Seed Frontend Templates -->
+        <record id="frontend_vue_spa" model="nexora.template_frontend">
+            <field name="name">Vue 3 / TypeScript SPA</field>
+            <field name="code">vue3_spa</field>
+            <field name="framework">vue</field>
+            <field name="subfolder_path">frontend/vue-spa</field>
+            <field name="git_repo_url">https://github.com/nexora-studio/frontend-vue-spa.git</field>
+            <field name="description">Modern Vue 3 single-page application template configured with Vite, Tailwind CSS, Pinia, and TypeScript.</field>
+            <field name="metadata_id" ref="metadata_fullstack_std"/>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="frontend_nextjs_app" model="nexora.template_frontend">
+            <field name="name">Next.js 15 React Web App</field>
+            <field name="code">nextjs_app</field>
+            <field name="framework">nextjs</field>
+            <field name="subfolder_path">frontend/nextjs-app</field>
+            <field name="git_repo_url">https://github.com/nexora-studio/frontend-nextjs-app.git</field>
+            <field name="description">Enterprise Next.js App Router template with shadcn/ui, Tailwind, and React Query.</field>
+            <field name="metadata_id" ref="metadata_fullstack_std"/>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Seed Backend Templates -->
+        <record id="backend_fastapi_service" model="nexora.template_backend">
+            <field name="name">FastAPI Python Microservice</field>
+            <field name="code">fastapi_service</field>
+            <field name="framework">fastapi</field>
+            <field name="subfolder_path">backend/fastapi-service</field>
+            <field name="git_repo_url">https://github.com/nexora-studio/backend-fastapi-service.git</field>
+            <field name="description">Async Python FastAPI microservice architecture with SQLAlchemy 2.0, Pydantic v2, and Alembic migrations.</field>
+            <field name="metadata_id" ref="metadata_fullstack_std"/>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="backend_odoo_addon" model="nexora.template_backend">
+            <field name="name">Odoo 19 Custom Module Skeleton</field>
+            <field name="code">odoo_module</field>
+            <field name="framework">odoo</field>
+            <field name="subfolder_path">backend/odoo-module</field>
+            <field name="git_repo_url">https://github.com/nexora-studio/backend-odoo-module.git</field>
+            <field name="description">Standard Odoo 19 Community custom module structure following Nexora architectural standards.</field>
+            <field name="metadata_id" ref="metadata_fullstack_std"/>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Seed Template Versions -->
+        <record id="version_vue_spa_v1" model="nexora.template_version">
+            <field name="name">v1.2.0-stable</field>
+            <field name="frontend_template_id" ref="frontend_vue_spa"/>
+            <field name="commit_hash">a1b2c3d4e5f6</field>
+            <field name="release_notes">Initial production stable release for Vue 3 SPA template.</field>
+            <field name="is_latest" eval="True"/>
+        </record>
+
+        <record id="version_fastapi_v1" model="nexora.template_version">
+            <field name="name">v2.0.1-stable</field>
+            <field name="backend_template_id" ref="backend_fastapi_service"/>
+            <field name="commit_hash">f6e5d4c3b2a1</field>
+            <field name="release_notes">Upgraded to FastAPI 0.110+ and SQLAlchemy 2.0 async engine.</field>
+            <field name="is_latest" eval="True"/>
+        </record>
+
+        <!-- Seed Template Compatibility Matrix -->
+        <record id="compat_vue_fastapi" model="nexora.template_compatibility">
+            <field name="frontend_template_id" ref="frontend_vue_spa"/>
+            <field name="backend_template_id" ref="backend_fastapi_service"/>
+            <field name="compatibility_level">verified</field>
+            <field name="notes">Pre-configured CORS and JWT bearer token authentication mapping between Vue SPA and FastAPI endpoints.</field>
+        </record>
+
+        <!-- Generator Types -->
+        <record id="type_fullstack_web" model="nexora.generator_type">
+            <field name="name">Fullstack Web Application</field>
+            <field name="code">fullstack_web</field>
+            <field name="category">fullstack</field>
+            <field name="description">Standard fullstack architecture separating SPA frontend template and API backend template with automated merging and variable substitution.</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="type_frontend_spa" model="nexora.generator_type">
+            <field name="name">Frontend SPA Only</field>
+            <field name="code">frontend_spa</field>
+            <field name="category">frontend</field>
+            <field name="description">Single-page web application template (Vite, React, Vue, Next.js) without backend services.</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="type_backend_api" model="nexora.generator_type">
+            <field name="name">Backend API Service</field>
+            <field name="code">backend_api</field>
+            <field name="category">backend</field>
+            <field name="description">Standalone backend service API template (Python FastAPI, Node Express, Go) without frontend assets.</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Generator Capabilities -->
+        <record id="cap_var_sub" model="nexora.generator_capability">
+            <field name="name">Variable Substitution Engine</field>
+            <field name="code">variable_substitution</field>
+            <field name="generator_type_id" ref="type_fullstack_web"/>
+            <field name="description">Dynamic placeholder replacement ({{VAR}} / ${VAR}) across codebase files.</field>
+        </record>
+
+        <record id="cap_merge_templates" model="nexora.generator_capability">
+            <field name="name">Dual-Repository Template Merging</field>
+            <field name="code">dual_repo_merge</field>
+            <field name="generator_type_id" ref="type_fullstack_web"/>
+            <field name="description">Combines independent frontend and backend directory trees into a unified project workspace.</field>
+        </record>
+
+        <record id="cap_env_gen" model="nexora.generator_capability">
+            <field name="name">Environment Configuration Generation</field>
+            <field name="code">env_config_generation</field>
+            <field name="generator_type_id" ref="type_fullstack_web"/>
+            <field name="description">Automated synthesis of .env, docker-compose.yml, and config files from job parameters.</field>
+        </record>
+
+        <record id="cap_rollback" model="nexora.generator_capability">
+            <field name="name">Transactional Generation Rollback</field>
+            <field name="code">transactional_rollback</field>
+            <field name="generator_type_id" ref="type_fullstack_web"/>
+            <field name="description">Supports clean filesystem and state cleanup if generation pipeline encounters an exception.</field>
+        </record>
+
+        <!-- Default Generation Pipeline -->
+        <record id="pipeline_fullstack_std" model="nexora.generation_pipeline">
+            <field name="name">Standard Fullstack Generation Pipeline</field>
+            <field name="code">fullstack_standard</field>
+            <field name="generator_type_id" ref="type_fullstack_web"/>
+            <field name="description">Complete 8-stage generation workflow from validation and cloning to merging, variable substitution, and finalization.</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Pipeline Stages -->
+        <record id="stage_01_validate" model="nexora.generation_stage">
+            <field name="name">Validate Templates</field>
+            <field name="code">validate</field>
+            <field name="pipeline_id" ref="pipeline_fullstack_std"/>
+            <field name="sequence">10</field>
+            <field name="stage_type">validation</field>
+            <field name="service_name">nexora.validation_service</field>
+            <field name="can_rollback" eval="False"/>
+            <field name="description">Verifies template references and schema compatibility.</field>
+        </record>
+
+        <record id="stage_02_prepare" model="nexora.generation_stage">
+            <field name="name">Prepare Workspace</field>
+            <field name="code">prepare</field>
+            <field name="pipeline_id" ref="pipeline_fullstack_std"/>
+            <field name="sequence">20</field>
+            <field name="stage_type">preparation</field>
+            <field name="service_name">nexora.workspace_preparation_service</field>
+            <field name="can_rollback" eval="True"/>
+            <field name="description">Validates and initializes the target workspace directory on the filesystem.</field>
+        </record>
+
+        <record id="stage_03_clone_frontend" model="nexora.generation_stage">
+            <field name="name">Clone Frontend Template</field>
+            <field name="code">clone_frontend</field>
+            <field name="pipeline_id" ref="pipeline_fullstack_std"/>
+            <field name="sequence">30</field>
+            <field name="stage_type">cloning</field>
+            <field name="service_name">nexora.generation_service</field>
+            <field name="can_rollback" eval="True"/>
+            <field name="description">Clones reusable frontend assets from Template Store.</field>
+        </record>
+
+        <record id="stage_04_clone_backend" model="nexora.generation_stage">
+            <field name="name">Clone Backend Template</field>
+            <field name="code">clone_backend</field>
+            <field name="pipeline_id" ref="pipeline_fullstack_std"/>
+            <field name="sequence">40</field>
+            <field name="stage_type">cloning</field>
+            <field name="service_name">nexora.generation_service</field>
+            <field name="can_rollback" eval="True"/>
+            <field name="description">Clones reusable backend service from Template Store.</field>
+        </record>
+
+        <record id="stage_05_merge" model="nexora.generation_stage">
+            <field name="name">Merge Frontend + Backend</field>
+            <field name="code">merge</field>
+            <field name="pipeline_id" ref="pipeline_fullstack_std"/>
+            <field name="sequence">50</field>
+            <field name="stage_type">merge</field>
+            <field name="service_name">nexora.merge_service</field>
+            <field name="can_rollback" eval="True"/>
+            <field name="description">Merges both directory trees into unified project hierarchy.</field>
+        </record>
+
+        <record id="stage_06_variables" model="nexora.generation_stage">
+            <field name="name">Replace Variables</field>
+            <field name="code">variables</field>
+            <field name="pipeline_id" ref="pipeline_fullstack_std"/>
+            <field name="sequence">60</field>
+            <field name="stage_type">variable</field>
+            <field name="service_name">nexora.variable_engine</field>
+            <field name="can_rollback" eval="True"/>
+            <field name="description">Replaces placeholders e.g. {{PROJECT_NAME}} across source code.</field>
+        </record>
+
+        <record id="stage_07_config" model="nexora.generation_stage">
+            <field name="name">Generate Configuration</field>
+            <field name="code">config</field>
+            <field name="pipeline_id" ref="pipeline_fullstack_std"/>
+            <field name="sequence">70</field>
+            <field name="stage_type">config</field>
+            <field name="service_name">nexora.variable_engine</field>
+            <field name="can_rollback" eval="True"/>
+            <field name="description">Synthesizes environment variables, .env, and runtime manifests.</field>
+        </record>
+
+        <record id="stage_08_finalize" model="nexora.generation_stage">
+            <field name="name">Finalize Workspace</field>
+            <field name="code">finalize</field>
+            <field name="pipeline_id" ref="pipeline_fullstack_std"/>
+            <field name="sequence">80</field>
+            <field name="stage_type">finalize</field>
+            <field name="service_name">nexora.workspace_preparation_service</field>
+            <field name="can_rollback" eval="False"/>
+            <field name="description">Seals workspace generation and prepares for Builder Session attachment.</field>
+        </record>
+
+        <!-- Set default pipeline on type_fullstack_web -->
+        <record id="type_fullstack_web" model="nexora.generator_type">
+            <field name="default_pipeline_id" ref="pipeline_fullstack_std"/>
+        </record>
+    </data>
+</odoo>

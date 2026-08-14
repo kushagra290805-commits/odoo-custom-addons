@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Category Views -->
+    <record id="view_nexora_category_tree" model="ir.ui.view">
+        <field name="name">nexora.category.tree</field>
+        <field name="model">nexora.category</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="technical_key"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_category_form" model="ir.ui.view">
+        <field name="name">nexora.category.form</field>
+        <field name="model">nexora.category</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="technical_key"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nexora_category" model="ir.actions.act_window">
+        <field name="name">Categories</field>
+        <field name="res_model">nexora.category</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Component Views -->
+    <record id="view_nexora_component_tree" model="ir.ui.view">
+        <field name="name">nexora.component.tree</field>
+        <field name="model">nexora.component</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="technical_name"/>
+                <field name="semantic_version"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_component_form" model="ir.ui.view">
+        <field name="name">nexora.component.form</field>
+        <field name="model">nexora.component</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="technical_name"/>
+                            <field name="semantic_version"/>
+                            <field name="module_name"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nexora_component" model="ir.actions.act_window">
+        <field name="name">Components</field>
+        <field name="res_model">nexora.component</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Capability Views -->
+    <record id="view_nexora_capability_tree" model="ir.ui.view">
+        <field name="name">nexora.capability.tree</field>
+        <field name="model">nexora.capability</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="technical_key"/>
+                <field name="category_id"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_capability_form" model="ir.ui.view">
+        <field name="name">nexora.capability.form</field>
+        <field name="model">nexora.capability</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="technical_key"/>
+                            <field name="category_id"/>
+                            <field name="provider"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nexora_capability" model="ir.actions.act_window">
+        <field name="name">Capabilities</field>
+        <field name="res_model">nexora.capability</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Service Views -->
+    <record id="view_nexora_service_tree" model="ir.ui.view">
+        <field name="name">nexora.service.tree</field>
+        <field name="model">nexora.service</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="technical_key"/>
+                <field name="service_type"/>
+                <field name="status"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_service_form" model="ir.ui.view">
+        <field name="name">nexora.service.form</field>
+        <field name="model">nexora.service</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="technical_key"/>
+                            <field name="service_type"/>
+                            <field name="endpoint"/>
+                            <field name="status"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nexora_service" model="ir.actions.act_window">
+        <field name="name">Services</field>
+        <field name="res_model">nexora.service</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Navigation Views -->
+    <record id="view_nexora_navigation_tree" model="ir.ui.view">
+        <field name="name">nexora.navigation.tree</field>
+        <field name="model">nexora.navigation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="technical_key"/>
+                <field name="parent_id"/>
+                <field name="action_xmlid"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nexora_navigation_form" model="ir.ui.view">
+        <field name="name">nexora.navigation.form</field>
+        <field name="model">nexora.navigation</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="technical_key"/>
+                            <field name="parent_id"/>
+                            <field name="action_xmlid"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nexora_navigation" model="ir.actions.act_window">
+        <field name="name">Navigation</field>
+        <field name="res_model">nexora.navigation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

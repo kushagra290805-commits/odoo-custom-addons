@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Runtime Form View -->
+    <record id="view_nexora_runtime_form" model="ir.ui.view">
+        <field name="name">nexora.runtime.form</field>
+        <field name="model">nexora.runtime</field>
+        <field name="arch" type="xml">
+            <form string="Runtime">
+                <header>
+                    <field name="status" widget="statusbar" statusbar_visible="stopped,starting,running,busy,stopping,error"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Runtime Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="runtime_uuid"/>
+                            <field name="runtime_type"/>
+                            <field name="builder_session_id"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="health" widget="badge" 
+                                   decoration-danger="health == 'critical'"
+                                   decoration-warning="health == 'warning'"
+                                   decoration-success="health == 'healthy'"/>
+                            <field name="endpoint"/>
+                            <field name="port"/>
+                            <field name="process_id"/>
+                            <field name="version"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Lifecycle">
+                            <group>
+                                <field name="started_at"/>
+                                <field name="stopped_at"/>
+                                <field name="last_activity"/>
+                            </group>
+                        </page>
+                        <page string="Metadata">
+                            <field name="metadata_json" widget="text"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Runtime List View -->
+    <record id="view_nexora_runtime_list" model="ir.ui.view">
+        <field name="name">nexora.runtime.list</field>
+        <field name="model">nexora.runtime</field>
+        <field name="arch" type="xml">
+            <list string="Runtimes">
+                <field name="name"/>
+                <field name="runtime_type"/>
+                <field name="builder_session_id"/>
+                <field name="status" widget="badge" 
+                       decoration-info="status == 'stopped'" 
+                       decoration-warning="status in ('starting', 'stopping')" 
+                       decoration-success="status == 'running'" 
+                       decoration-danger="status == 'error'"/>
+                <field name="health"/>
+                <field name="endpoint"/>
+                <field name="port"/>
+                <field name="process_id"/>
+                <field name="last_activity"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Runtime Search View -->
+    <record id="view_nexora_runtime_search" model="ir.ui.view">
+        <field name="name">nexora.runtime.search</field>
+        <field name="model">nexora.runtime</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="runtime_type"/>
+                <field name="status"/>
+                <field name="builder_session_id"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Runtime Action -->
+    <record id="action_nexora_runtime" model="ir.actions.act_window">
+        <field name="name">Runtime Registry</field>
+        <field name="res_model">nexora.runtime</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_nexora_runtime_search"/>
+        <field name="context">{'search_default_active': 1}</field>
+    </record>
+</odoo>

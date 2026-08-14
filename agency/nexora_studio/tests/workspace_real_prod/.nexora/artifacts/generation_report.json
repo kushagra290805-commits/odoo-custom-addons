@@ -1,0 +1,18 @@
+{
+    "mode": "FULL",
+    "targets": [],
+    "force": false,
+    "generated_files": [
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_real_prod\\src\\components\\Header.js"
+    ],
+    "materialized_files": [
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_real_prod\\src\\index.html",
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_real_prod\\src\\package.json",
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_real_prod\\src\\template.json",
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_real_prod\\src\\vite.config.js",
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_real_prod\\src\\components\\Header.js",
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_real_prod\\src\\src\\App.jsx",
+        "D:\\ODOO\\custom-addons\\agency\\nexora_studio\\tests\\workspace_real_prod\\src\\src\\main.jsx"
+    ],
+    "runtimes": []
+}
