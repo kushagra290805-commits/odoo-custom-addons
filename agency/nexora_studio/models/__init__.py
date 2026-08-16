@@ -48,8 +48,7 @@ from . import github_provider
 from . import playwright_provider
 from . import context7_provider
 from . import tavily_provider
-from . import firecrawl_provider
-from . import penpot_provider
+
 from . import spline_provider
 from . import gosom_provider
 

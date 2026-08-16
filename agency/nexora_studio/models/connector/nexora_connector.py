@@ -209,7 +209,7 @@ class NexoraConnector(models.Model):
     diagnostic_ids = fields.One2many('nexora.connector_diagnostic', 'connector_id', string='Diagnostics')
 
     _sql_constraints = [
-        ('unique_connector_id', 'unique(connector_id)', 'Connector ID must be globally unique!'),
+        ('nexora_connector_id_uniq', 'unique(connector_id)', 'Connector ID must be globally unique!'),
     ]
 
     @api.depends('state')
@@ -248,9 +248,11 @@ class NexoraConnector(models.Model):
                         record.state = 'running'
                         record.error_message = ''
                     except Exception as e:
-                        # 4. If failed, persist failed immediately
+                        # 4. If failed, persist failed immediately and notify user
                         record.state = 'failed'
                         record.error_message = f"Activation failed: {str(e)}"
+                        from odoo.exceptions import UserError
+                        raise UserError(record.error_message)
                 else:
                     record.state = 'running'
                     record.error_message = ''
@@ -299,6 +301,8 @@ class NexoraConnector(models.Model):
                     }
                     if health_result.status.value == 'failed':
                         update_vals['error_message'] = getattr(health_result, 'error_detail', '')
+                    else:
+                        update_vals['error_message'] = False
                         
                     record.write(update_vals)
             except Exception as e:
