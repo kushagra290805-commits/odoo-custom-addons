@@ -53,7 +53,6 @@ with registry.cursor() as cr:
                 if tool_id == 'mcp.github': return (self.env.get('nexora.provider.github'), None)
                 if tool_id == 'mcp.context7': return (self.env.get('nexora.provider.context7'), None)
                 if tool_id == 'mcp.tavily': return (self.env.get('nexora.provider.tavily'), None)
-                if tool_id == 'mcp.firecrawl': return (self.env.get('nexora.provider.firecrawl'), None)
                 if tool_id == 'mcp.tool.terminal': return (self.env.get('nexora.provider.terminal'), None)
                 if tool_id == 'local.gosom': return (self.env.get('nexora.provider.gosom'), None)
                 if tool_id == 'local.spline': return (self.env.get('nexora.provider.spline'), None)

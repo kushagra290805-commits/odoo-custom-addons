@@ -17,7 +17,6 @@ PROVIDERS = [
     ProviderDescriptor('local.playwright', 'nexora.provider.playwright', 'snapshot', {"action": "snapshot", "url": "https://example.com"}),
     ProviderDescriptor('mcp.context7', 'nexora.provider.context7', 'query', {"mcp_tool": "query", "text": "hello"}),
     ProviderDescriptor('mcp.tavily', 'nexora.provider.tavily', 'search', {"mcp_tool": "search", "query": "latest news"}),
-    ProviderDescriptor('mcp.firecrawl', 'nexora.provider.firecrawl', 'scrape', {"mcp_tool": "scrape", "url": "https://example.com"}),
     ProviderDescriptor('mcp.penpot', 'nexora.provider.penpot', 'get-files', {"mcp_tool": "get-files", "teamId": "demo"}),
     ProviderDescriptor('local.spline', 'nexora.provider.spline', 'render', {"action": "render", "scene_url": "https://prod.spline.design/example/scene.splinecode"}),
     ProviderDescriptor('local.gosom', 'nexora.provider.gosom', 'scrape', {"query": "restaurants in new york", "depth": 1}),

@@ -111,15 +111,6 @@ def run_pilot():
             'deps': ['node'],
             'install_cmd': ['npm', 'install'],
             'exec_cmd': ['node', 'bin/prettier.cjs', '--version']
-        },
-        {
-            'category': 'Optional External SaaS',
-            'name': 'Firecrawl',
-            'code': 'mcp.firecrawl',
-            'repo': 'https://github.com/mendableai/firecrawl.git',
-            'deps': ['python', 'node'],
-            'install_cmd': ['npm', 'install'],
-            'exec_cmd': ['git', 'log', '-1', '--oneline']
         }
     ]
 
@@ -227,7 +218,6 @@ def run_pilot():
     print("\n--- Configuration Placeholder Report ---")
     print("- GitHub MCP: REQUIRES GITHUB_PERSONAL_ACCESS_TOKEN (https://github.com/settings/tokens)")
     print("- gosom/google-maps-scraper: No secrets required for local docker.")
-    print("- Firecrawl: REQUIRES FIRECRAWL_API_KEY (https://firecrawl.dev). Placeholder generated.")
     
     if all_ready:
         print("\nVERDICT: READY FOR FULL PRODUCTION ECOSYSTEM INTEGRATION")
