@@ -40,7 +40,7 @@ from odoo.addons.nexora_studio.services.design.layout_engine import DesignLayout
 from odoo.addons.nexora_studio.services.design.asset_planning_engine import AssetPlanningEngine
 from odoo.addons.nexora_studio.services.design.content_intelligence_engine import ContentIntelligenceEngine
 from odoo.addons.nexora_studio.services.design.design_orchestrator import DesignOrchestrator
-from odoo.addons.nexora_studio.services.design.penpot_provider import PenpotDesignProvider
+from odoo.addons.nexora_studio.services.design.providers.react_provider import ReactRenderingProvider
 
 
 class DummySysParam:
@@ -233,17 +233,19 @@ class TestLayoutEngine(unittest.TestCase):
         self.assertEqual(bp_res["blueprint"]["pages"][0]["layout_definition_id"], "layout_ecom_catalog")
 
     def test_orchestrator_and_penpot_routing(self):
-        """Verify Design Orchestrator routing and Penpot provider metadata consumption."""
+        """Verify Design Orchestrator routing and ReactRenderingProvider metadata consumption."""
         bp_res = self.bp_engine.generate_blueprint({"project_name": "Blog Editorial Project", "project_type": "blog"})
         bp = bp_res["blueprint"]
 
-        res = self.orchestrator.execute_blueprint(bp, provider_name="penpot")
-        self.assertEqual(res["status"], "success")
-        self.assertIn("layout_intelligence_compliance", res)
-        self.assertTrue(res["layout_intelligence_compliance"]["is_compliant"])
-        self.assertIn("layout_blog_editorial", res["reusable_layout_definitions_consumed"])
-        self.assertIn("create_grid_layout (requires undocumented update-file changeset schema)", res["unsupported_granular_operations_deferred"])
-        self.assertIn("schema compliance rules", res["note"])
+        with patch.object(ReactRenderingProvider, "process_blueprint", return_value={"status": "success", "provider": "react"}) as mock_pb:
+            res = self.orchestrator.execute_blueprint(bp, provider_name="react")
+            mock_pb.assert_called_once()
+            
+            self.assertEqual(res.get("status"), "success")
+            self.assertEqual(res.get("provider"), "react")
+            self.assertIn("layout_intelligence_compliance", res)
+            self.assertTrue(res["layout_intelligence_compliance"]["is_compliant"])
+            self.assertTrue(res["layout_intelligence_compliance"]["is_compliant"])
 
 
 

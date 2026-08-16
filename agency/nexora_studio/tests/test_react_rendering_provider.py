@@ -34,7 +34,6 @@ from odoo.addons.nexora_studio.services.design.layout_engine import DesignLayout
 from odoo.addons.nexora_studio.services.design.asset_planning_engine import AssetPlanningEngine
 from odoo.addons.nexora_studio.services.design.content_intelligence_engine import ContentIntelligenceEngine
 from odoo.addons.nexora_studio.services.design.design_orchestrator import DesignOrchestrator
-from odoo.addons.nexora_studio.services.design.penpot_provider import PenpotDesignProvider
 
 
 class DummySysParam:

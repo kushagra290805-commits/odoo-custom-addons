@@ -29,7 +29,7 @@ from odoo.addons.nexora_studio.services.design.layout_engine import DesignLayout
 from odoo.addons.nexora_studio.services.design.asset_planning_engine import AssetPlanningEngine
 from odoo.addons.nexora_studio.services.design.content_intelligence_engine import ContentIntelligenceEngine
 from odoo.addons.nexora_studio.services.design.design_orchestrator import DesignOrchestrator
-from odoo.addons.nexora_studio.services.design.penpot_provider import PenpotDesignProvider
+from odoo.addons.nexora_studio.services.design.providers.react_provider import ReactRenderingProvider
 
 
 class DummySysParam:
@@ -245,29 +245,14 @@ class TestDesignSystemEngine(unittest.TestCase):
         env = DummyOdooEnv()
         orch = env['nexora.design_orchestrator']
         
-        with patch.object(PenpotDesignProvider, "create_project", return_value={"id": "sys-penpot-999", "name": "Penpot System Target"}) as mock_cp, \
-             patch.object(PenpotDesignProvider, "validate_design", return_value={"valid": True, "project_id": "sys-penpot-999"}) as mock_vd:
+        with patch.object(ReactRenderingProvider, "process_blueprint", return_value={"status": "success", "provider": "react"}) as mock_pb:
             
-            res = orch.execute_blueprint(bp, provider_name="penpot")
-            mock_cp.assert_called_once()
-            mock_vd.assert_called_once()
+            res = orch.execute_blueprint(bp, provider_name="react")
+            mock_pb.assert_called_once()
             
             self.assertEqual(res.get("status"), "success")
-            self.assertEqual(res.get("provider"), "penpot")
+            self.assertEqual(res.get("provider"), "react")
             self.assertTrue(res.get("design_system_compliance", {}).get("is_compliant"))
-            
-            consumed = res.get("reusable_definitions_consumed", [])
-            self.assertTrue(any(c["definition_id"] == "lib_ecom_product_card" for c in consumed))
-            
-            # Verify metadata passed to create_project included reusable component definition info
-            call_kwargs = mock_cp.call_args[1]
-            metadata_passed = call_kwargs.get("metadata", {})
-            self.assertEqual(metadata_passed.get("reusable_component_definitions_count"), 1)
-            
-            self.assertIn("create_project", res.get("supported_operations_executed", []))
-            self.assertTrue(any("create_component" in op for op in res.get("unsupported_granular_operations_deferred", [])))
-            self.assertIn("Phase 11D", res.get("note", ""))
-            self.assertIn("11D", res.get("note", ""))
 
 
 if __name__ == '__main__':

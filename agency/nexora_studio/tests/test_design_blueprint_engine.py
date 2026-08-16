@@ -24,7 +24,7 @@ from odoo.addons.nexora_studio.services.design.layout_engine import DesignLayout
 from odoo.addons.nexora_studio.services.design.asset_planning_engine import AssetPlanningEngine
 from odoo.addons.nexora_studio.services.design.content_intelligence_engine import ContentIntelligenceEngine
 from odoo.addons.nexora_studio.services.design.design_orchestrator import DesignOrchestrator
-from odoo.addons.nexora_studio.services.design.penpot_provider import PenpotDesignProvider
+from odoo.addons.nexora_studio.services.design.providers.react_provider import ReactRenderingProvider
 
 
 class DummySysParam:
@@ -191,27 +191,21 @@ class TestDesignBlueprintEngine(unittest.TestCase):
         self.assertEqual(bp_dict["experience"]["rendering_preference"], "2D")
 
     def test_08_orchestrator_and_penpot_translation(self):
-        """Verify DesignOrchestrator routes blueprint to PenpotDesignProvider and returns structured summary."""
+        """Verify DesignOrchestrator routes blueprint to ReactRenderingProvider and returns structured summary."""
         env = DummyOdooEnv()
         engine = env['nexora.design_blueprint_engine']
-        bp_res = engine.generate_blueprint({"project_name": "Penpot Target Blueprint"})
+        bp_res = engine.generate_blueprint({"project_name": "React Target Blueprint"})
         bp_dict = bp_res["blueprint"]
         
         orch = env['nexora.design_orchestrator']
         
-        with patch.object(PenpotDesignProvider, "create_project", return_value={"id": "live-penpot-proj-999", "name": "Penpot Target Blueprint"}) as mock_cp, \
-             patch.object(PenpotDesignProvider, "validate_design", return_value={"valid": True, "project_id": "live-penpot-proj-999"}) as mock_vd:
+        with patch.object(ReactRenderingProvider, "process_blueprint", return_value={"status": "success", "provider": "react"}) as mock_pb:
             
-            res = orch.execute_blueprint(bp_dict, provider_name="penpot")
-            mock_cp.assert_called_once()
-            mock_vd.assert_called_once()
+            res = orch.execute_blueprint(bp_dict, provider_name="react")
+            mock_pb.assert_called_once()
             
             self.assertEqual(res.get("status"), "success")
-            self.assertEqual(res.get("provider"), "penpot")
-            self.assertEqual(res.get("project_id"), "live-penpot-proj-999")
-            self.assertIn("create_project", res.get("supported_operations_executed", []))
-            self.assertIn("create_page", res.get("unsupported_granular_operations_deferred", [])[0])
-            self.assertIn("schema compliance rules", res.get("note", ""))
+            self.assertEqual(res.get("provider"), "react")
 
 
 if __name__ == '__main__':

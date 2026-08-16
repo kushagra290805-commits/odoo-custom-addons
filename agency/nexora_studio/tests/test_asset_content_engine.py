@@ -38,7 +38,7 @@ from odoo.addons.nexora_studio.services.design.layout_engine import DesignLayout
 from odoo.addons.nexora_studio.services.design.asset_planning_engine import AssetPlanningEngine
 from odoo.addons.nexora_studio.services.design.content_intelligence_engine import ContentIntelligenceEngine
 from odoo.addons.nexora_studio.services.design.design_orchestrator import DesignOrchestrator
-from odoo.addons.nexora_studio.services.design.penpot_provider import PenpotDesignProvider
+from odoo.addons.nexora_studio.services.design.providers.react_provider import ReactRenderingProvider
 
 
 class DummySysParam:
@@ -237,26 +237,26 @@ class TestAssetContentEngine(unittest.TestCase):
         self.assertTrue(res["content_intelligence_compliance"]["is_compliant"])
 
     def test_06_orchestrator_routing_and_penpot_metadata_consumption(self):
-        """Test Orchestrator routing through Asset and Content engines and Penpot metadata consumption."""
-        bp = DesignBlueprint(blueprint_id="bp-11f-test", project_name="Orchestrator 11F Test", metadata={"project_type": "saas"})
-        bp.pages.append(PageBlueprint(id="p-1", name="Home", slug="home", sections=[
-            SectionBlueprint(id="s-1", name="Hero", section_type="hero", components=[
-                ComponentBlueprint(id="c-1", name="Hero Component", definition_id="hero_standard", variant="default")
+        """Test Orchestrator routing through Asset and Content engines and React metadata consumption."""
+        from unittest.mock import patch
+        bp = DesignBlueprint("bp_orch", "Agency Site", pages=[
+            PageBlueprint("p1", "/", "Home", sections=[
+                SectionBlueprint("s1", "Hero", components=[
+                    ComponentBlueprint("c_hero", "Hero Banner", category="hero", variant="with-video")
+                ])
             ])
-        ]))
-
+        ])
 
         orch = self.env['nexora.design_orchestrator']
-        res = orch.execute_blueprint(bp, provider_name="penpot", config={"base_url": "http://localhost:9001", "access_token": "test_token"})
-        
-        self.assertEqual(res["status"], "success")
-        self.assertTrue(res["asset_plan_consumed"])
-        self.assertTrue(res["content_plan_consumed"])
-        self.assertIn("asset_planning_compliance", res)
-        self.assertIn("content_intelligence_compliance", res)
-        self.assertIn("upload_bitmap_to_canvas (requires multipart upload schema)", res["unsupported_granular_operations_deferred"])
-
-
+        with patch.object(ReactRenderingProvider, "process_blueprint", return_value={"status": "success", "provider": "react"}) as mock_pb:
+            
+            res = orch.execute_blueprint(bp, provider_name="react")
+            mock_pb.assert_called_once()
+            
+            self.assertEqual(res.get("status"), "success")
+            self.assertEqual(res.get("provider"), "react")
+            self.assertIn("asset_planning_compliance", res)
+            self.assertIn("content_intelligence_compliance", res)
 
 if __name__ == '__main__':
     unittest.main()

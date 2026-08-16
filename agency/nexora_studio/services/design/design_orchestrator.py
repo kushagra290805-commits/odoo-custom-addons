@@ -4,7 +4,6 @@ from odoo.exceptions import ValidationError
 import logging
 from typing import Dict, Any, Optional
 from .design_provider import DesignProvider
-from .penpot_provider import PenpotDesignProvider
 
 _logger = logging.getLogger(__name__)
 
@@ -28,9 +27,7 @@ class DesignOrchestrator(models.AbstractModel):
         Defaults to 'penpot' (PenpotDesignProvider) if no provider is specified.
         Injects Odoo self.env to enable 4-tier configuration precedence resolution.
         """
-        target_provider = (provider_name or 'penpot').lower()
-        if target_provider == 'penpot':
-            return PenpotDesignProvider(config=config, env=self.env)
+        target_provider = (provider_name or 'react').lower()
         
         from .providers.provider_registry import RenderingProviderRegistry
         try:
@@ -38,7 +35,7 @@ class DesignOrchestrator(models.AbstractModel):
         except (ValueError, NotImplementedError):
             pass
         
-        raise ValidationError(_("Unsupported design provider: %s. Penpot is the primary default provider.") % target_provider)
+        raise ValidationError(_("Unsupported design provider: %s.") % target_provider)
 
 
 
