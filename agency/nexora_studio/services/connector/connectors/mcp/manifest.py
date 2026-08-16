@@ -8,9 +8,6 @@ def build_mcp_manifest(
     capabilities: List[str],
     version: str = "1.0.0"
 ) -> ConnectorManifest:
-    """
-    Builds a ConnectorManifest for an MCP-backed connector.
-    """
     return ConnectorManifest(
         connector_id=connector_id,
         display_name=display_name,

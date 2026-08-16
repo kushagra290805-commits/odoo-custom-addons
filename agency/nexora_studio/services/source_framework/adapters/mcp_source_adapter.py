@@ -68,6 +68,8 @@ class McpSourceAdapter(BaseProviderAdapter):
             raise RuntimeError("ConnectorRuntime is not available.")
         self._capability_map: Optional[Dict[str, str]] = None
         self._default_payload: Optional[Dict[str, Any]] = None
+        self._payload_mapping: Optional[Dict[str, Dict[str, str]]] = None
+        self._normalization_map: Optional[Dict[str, str]] = None
 
     # ------------------------------------------------------------------
     # Capability routing
@@ -94,10 +96,10 @@ class McpSourceAdapter(BaseProviderAdapter):
 
         self._capability_map = {}
         self._default_payload = {}
-        connector = self.env['nexora.connector'].search([('connector_id', '=', self.connector_id)], limit=1)
+        connector = self.env['nexora.connector'].browse(self.connector_id)
         # Look up source_registry record linked to this connector
         registry_rec = self.env['nexora.source_registry'].search(
-            [('connector_id.connector_id', '=', self.connector_id)], limit=1
+            [('connector_id.id', '=', self.connector_id)], limit=1
         )
         if registry_rec and registry_rec.config_json:
             try:
@@ -108,6 +110,9 @@ class McpSourceAdapter(BaseProviderAdapter):
                     self._default_payload = default_payload
                 else:
                     _logger.warning("McpSourceAdapter: default_payload must be a dict")
+
+                self._payload_mapping = parsed.get('payload_mapping', {})
+                self._normalization_map = parsed.get('normalization', {})
             except (json.JSONDecodeError, AttributeError):
                 _logger.warning(
                     "McpSourceAdapter: invalid config_json for connector %s",
@@ -144,14 +149,23 @@ class McpSourceAdapter(BaseProviderAdapter):
                 f"Available: {available}"
             )
 
+        connector = self.env['nexora.connector'].browse(self.connector_id)
         ctx = ConnectorRuntimeContext(
-            connector_id=str(self.connector_id),
+            connector_id=connector.connector_id,
             session_id='csf'
         )
 
         # Merge source-bound configuration payload with runtime params.
         # Precedence: Source defaults override runtime parameters to preserve source isolation.
         final_payload = dict(params)
+
+        # Apply generic payload mapping if configured for this intent
+        if self._payload_mapping and semantic_intent in self._payload_mapping:
+            mapping = self._payload_mapping[semantic_intent]
+            for target_key, source_key in mapping.items():
+                if source_key in params:
+                    final_payload[target_key] = params[source_key]
+
         if self._default_payload:
             final_payload.update(self._default_payload)
 
@@ -179,19 +193,34 @@ class McpSourceAdapter(BaseProviderAdapter):
         """
         Normalise raw MCP tool output to a typed domain model where confidence
         is sufficient. Preserves raw output otherwise.
-
-        Rules:
-        - Never invents fields.
-        - Never forces normalization on ambiguous data.
-        - Exposes normalization failures via logging, returns raw on error.
-        - Provider-specific normalization config can be added later via
-          'normalization' key in config_json without changing this class.
         """
+        # 1. MCP Standard Content Envelope Unwrapping
+        if isinstance(raw, dict) and 'content' in raw and isinstance(raw['content'], list) and len(raw['content']) > 0:
+            first = raw['content'][0]
+            if isinstance(first, dict) and first.get('type') == 'text' and 'text' in first:
+                try:
+                    import json
+                    unwrapped = json.loads(first['text'])
+                    # If the JSON payload wraps items in an 'items' array (e.g. GitHub search pagination), unwrap it generically.
+                    if isinstance(unwrapped, dict) and 'items' in unwrapped and isinstance(unwrapped['items'], list):
+                        unwrapped = unwrapped['items']
+                    return self._normalize(unwrapped)
+                except (json.JSONDecodeError, TypeError):
+                    return first['text']
+
         if isinstance(raw, list):
             return [self._normalize(item) for item in raw]
 
         if not isinstance(raw, dict):
             return raw  # preserve scalars/None as-is
+
+        # 2. Generic Field Normalization mapping
+        if getattr(self, '_normalization_map', None):
+            mapped_raw = dict(raw)
+            for target_field, source_field in self._normalization_map.items():
+                if source_field in raw:
+                    mapped_raw[target_field] = raw[source_field]
+            raw = mapped_raw
 
         try:
             # Explicit type discriminant takes precedence
@@ -239,7 +268,22 @@ class McpSourceAdapter(BaseProviderAdapter):
         return self._normalize(self._execute('search', params))
 
     def get_component(self, component_id: str) -> Any:
-        return self._normalize(self._execute('get', {'id': component_id}))
+        from ..domain_models import ComponentPackage
+        normalized = self._normalize(self._execute('get', {'id': component_id}))
+        if isinstance(normalized, str):
+            return ComponentPackage(
+                component_id=component_id,
+                name=component_id,
+                description=normalized
+            )
+        if isinstance(normalized, dict):
+            description = normalized.get('content', normalized.get('text', str(normalized)))
+            return ComponentPackage(
+                component_id=component_id,
+                name=normalized.get('name', component_id),
+                description=description
+            )
+        return normalized
 
     def get_metadata(self, component_id: str) -> Dict[str, Any]:
         return self._execute('get_metadata', {'id': component_id})

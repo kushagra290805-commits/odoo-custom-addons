@@ -30,12 +30,17 @@ class NexoraMcpServerConfig(models.Model):
     )
 
     # ------------------------------------------------------------------
-    # MCP Process Configuration
+    # MCP Process/Endpoint Configuration
     # ------------------------------------------------------------------
+    transport_type = fields.Selection([
+        ('stdio', 'Standard I/O (Local Process)'),
+        ('sse', 'HTTP/SSE (Remote API)'),
+    ], string='Transport Type', default='stdio', required=True)
+
     command = fields.Char(
-        string='Command', required=True,
-        help='Executable to launch (e.g. "npx", "/usr/bin/python"). '
-             'Must be an absolute path or resolvable binary name. Never shell-expanded.'
+        string='Command / Endpoint', required=True,
+        help='Executable to launch (e.g. "npx") for stdio, or Endpoint URL (e.g. "http://localhost/mcp") for SSE. '
+             'For stdio, must be absolute path or resolvable binary. Never shell-expanded.'
     )
     args_json = fields.Text(
         string='Arguments (JSON)', default='[]',
@@ -48,8 +53,35 @@ class NexoraMcpServerConfig(models.Model):
     )
     env_vars_json = fields.Text(
         string='Non-Secret Environment Variables (JSON)', default='{}',
-        help='JSON dict of non-secret environment variables to inject into the MCP process. '
+        help='JSON dict of non-secret environment variables to inject into the MCP process (stdio). '
              'NEVER store secrets here — use nexora.mcp_credential instead.'
+    )
+
+    # ------------------------------------------------------------------
+    # Generic Authentication Configuration (primarily for SSE)
+    # ------------------------------------------------------------------
+    authentication_location = fields.Selection([
+        ('none', 'None'),
+        ('header', 'HTTP Header'),
+        ('query', 'Query Parameter'),
+    ], string='Authentication Location', default='none')
+
+    authentication_name = fields.Char(
+        string='Authentication Name',
+        help='Name of the header or query parameter (e.g., "Authorization", "userToken", "X-API-Key").'
+    )
+
+    authentication_scheme = fields.Selection([
+        ('none', 'None'),
+        ('bearer', 'Bearer'),
+        ('token', 'Token'),
+    ], string='Authentication Scheme', default='none',
+       help='Prefix used for headers (e.g., "Bearer <secret>").'
+    )
+
+    credential_key = fields.Char(
+        string='Credential Key Mapping',
+        help='Key of the nexora.mcp_credential used for this authentication (e.g., "PENPOT_API_KEY").'
     )
 
     # ------------------------------------------------------------------

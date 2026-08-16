@@ -204,22 +204,39 @@ class McpOnboardingService:
     def _build_mcp_configuration(self, connector_record, mcp_config_record) -> McpConfiguration:
         """
         Build McpConfiguration from Odoo records.
-        Injects decrypted secrets into env dict — never persists them.
+        For stdio, injects decrypted secrets into env dict.
+        For sse, populates the generic authentication fields.
+        Never persists decrypted secrets.
         """
         connector_id = connector_record.connector_id
+        transport = getattr(mcp_config_record, 'transport_type', 'stdio')
 
         # Non-secret env vars from config record
         env_vars = mcp_config_record.get_env_vars_dict()
-
-        # Resolve encrypted credentials and merge into env
         resolved_secrets = self._resolver.resolve_all_for_connector(connector_id)
-        env_vars.update(resolved_secrets)
-        # resolved_secrets dict goes out of scope here after merge — not retained
+
+        auth_location = getattr(mcp_config_record, 'authentication_location', 'none')
+        auth_name = getattr(mcp_config_record, 'authentication_name', '') or ''
+        auth_scheme = getattr(mcp_config_record, 'authentication_scheme', 'none')
+        credential_key = getattr(mcp_config_record, 'credential_key', '') or ''
+
+        auth_secret = ''
+        if auth_location != 'none' and credential_key:
+            auth_secret = resolved_secrets.get(credential_key, '')
+
+        if transport == 'stdio':
+            # Preserve backward compatibility: inject all secrets into env
+            env_vars.update(resolved_secrets)
 
         return McpConfiguration(
             command=mcp_config_record.command,
+            transport=transport,
             args=mcp_config_record.get_args_list(),
             env=env_vars if env_vars else None,
+            auth_location=auth_location,
+            auth_name=auth_name,
+            auth_scheme=auth_scheme,
+            auth_secret=auth_secret,
         )
 
     def _build_manifest(self, connector_record) -> ConnectorManifest:
@@ -259,8 +276,13 @@ class McpOnboardingService:
             connector_id=manifest.connector_id,
             user_overrides={
                 'command': mcp_config.command,
+                'transport': mcp_config.transport,
                 'args': mcp_config.args,
                 'env': mcp_config.env or {},
+                'auth_location': mcp_config.auth_location,
+                'auth_name': mcp_config.auth_name,
+                'auth_scheme': mcp_config.auth_scheme,
+                'auth_secret': mcp_config.auth_secret,
             }
         )
 
@@ -286,3 +308,4 @@ class McpOnboardingService:
                 connector_id, type(e).__name__,
                 extra={'connector_id': connector_id}
             )
+

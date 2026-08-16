@@ -12,12 +12,17 @@ class McpConnector(ComponentConnector):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         if config is None:
             config = {}
-        
+
         mcp_config = McpConfiguration(
             command=config.get("command", ""),
+            transport=config.get("transport", "stdio"),
             args=config.get("args", []),
             env=config.get("env", None),
-            trace_file=config.get("trace_file", None)
+            trace_file=config.get("trace_file", None),
+            auth_location=config.get("auth_location", "none"),
+            auth_name=config.get("auth_name", ""),
+            auth_scheme=config.get("auth_scheme", "none"),
+            auth_secret=config.get("auth_secret", ""),
         )
         transport = McpTransport(mcp_config)
         provider = McpProvider(transport)
