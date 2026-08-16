@@ -2,8 +2,6 @@ from odoo import models, api
 from odoo.addons.nexora_studio.services.generation.platform.platform_runtime import PlatformRuntime
 from odoo.addons.nexora_studio.services.generation.platform.runtime_registry import RuntimeRegistry
 from odoo.addons.nexora_studio.services.generation.platform.platform_health import PlatformHealthService
-from odoo.addons.nexora_studio.services.runtime.mcp.mcp_runtime_adapter import McpRuntimeAdapter
-from odoo.addons.nexora_studio.services.runtime.mcp.registry_provider import JsonRegistryProvider
 
 class NexoraStudioPlatform(models.AbstractModel):
     """
@@ -29,14 +27,8 @@ class NexoraStudioPlatform(models.AbstractModel):
         registry = RuntimeRegistry()
         health = PlatformHealthService(registry)
         
-        # 1. Provide the MCP JSON Configuration Path
-        default_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'config', 'mcp_registry.json')
-        mcp_registry_path = os.environ.get("NEXORA_MCP_REGISTRY_PATH", os.path.normpath(default_path))
-        provider = JsonRegistryProvider(mcp_registry_path)
-        
-        # 2. Instantiate Adapters and Register
-        mcp_adapter = McpRuntimeAdapter(provider)
-        registry.register_runtime(mcp_adapter)
+        # Legacy MCP Runtime has been migrated to UCP (Phase 36)
+        # We no longer register McpRuntimeAdapter here
         
         # 3. Create the Facade
         runtime = PlatformRuntime(registry, health)

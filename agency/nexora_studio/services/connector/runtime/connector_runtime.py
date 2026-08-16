@@ -234,22 +234,35 @@ class ConnectorRuntime(EventSubscriber):
 
         result = self.dispatcher.dispatch(request)
 
-        # Intercept transport failures from dispatcher
+        # Intercept genuine transport failures from dispatcher.
+        # Application-level errors (tool not found, unsupported capability, protocol error from
+        # a specific tool call) must NOT trigger recovery — only transport-level failures do.
+        # Capability-discovery namespaces (resources.list, prompts.list) are advisory: MCP
+        # servers are not required to implement them, so failures there are never transport errors.
+        _CAPABILITY_DISCOVERY_NAMESPACES = {'resources.list', 'prompts.list', 'tools.list'}
+        _TRANSPORT_ERROR_CODES = {'TRANSPORT_ERROR', 'TIMEOUT', 'NO_EXECUTION_ADAPTER'}
+
         from odoo.addons.nexora_studio.services.connector.domain.models import ConnectorExecutionStatus, ConnectorFailureClass
         if result.status == ConnectorExecutionStatus.FAILURE:
-            # Simple heuristic mapping for now; production would use explicit error_code mapping
-            connector_id = request.context.connector_id if request.context else None
-            if not connector_id:
-                # Try to resolve connector_id from index if not explicitly in context
-                connector_id = self.capability_index.get_primary(request.capability_namespace)
+            cap_ns = request.capability_namespace
+            is_discovery_ns = cap_ns in _CAPABILITY_DISCOVERY_NAMESPACES
+            is_transport_error = result.error_code in _TRANSPORT_ERROR_CODES
 
-            if connector_id and result.error_code in ("CONNECTOR_EXECUTION_ERROR", "TRANSPORT_ERROR", "TIMEOUT", "NO_EXECUTION_ADAPTER"):
-                _logger.warning("ConnectorRuntime: intercepting execution failure '%s' for '%s'.", result.error_code, connector_id)
-                self.handle_transport_failure(
-                    connector_id=connector_id,
-                    failure_class=ConnectorFailureClass.TRANSPORT_ERROR,
-                    error_message=result.error
-                )
+            if not is_discovery_ns and is_transport_error:
+                connector_id = request.context.connector_id if request.context else None
+                if not connector_id:
+                    connector_id = self.capability_index.get_primary(cap_ns)
+
+                if connector_id:
+                    _logger.warning(
+                        "ConnectorRuntime: transport failure '%s' for '%s' on '%s'.",
+                        result.error_code, connector_id, cap_ns
+                    )
+                    self.handle_transport_failure(
+                        connector_id=connector_id,
+                        failure_class=ConnectorFailureClass.TRANSPORT_ERROR,
+                        error_message=result.error
+                    )
 
         return result
 
@@ -270,6 +283,14 @@ class ConnectorRuntime(EventSubscriber):
         if self.registry.unregister(connector_id):
             self.capability_index.remove(connector_id)
             self.dispatcher.shutdown_connector(connector_id)
+            # Clear any stale recovery state so re-registration is not blocked
+            self._recovery_state.pop(connector_id, None)
+            timer = self._recovery_timers.pop(connector_id, None)
+            if timer is not None:
+                try:
+                    timer.cancel()
+                except Exception:
+                    pass
             return True
         return False
 

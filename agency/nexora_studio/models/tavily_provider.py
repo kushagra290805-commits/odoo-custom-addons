@@ -19,24 +19,44 @@ class TavilyProvider(models.AbstractModel):
         If the MCP is unavailable, return a structured capability failure.
         """
         try:
-            import asyncio
+            from odoo.addons.nexora_studio.services.connector.integration.bootstrap import ConnectorPlatformBootstrap
+            from odoo.addons.nexora_studio.services.connector.domain.models import ConnectorExecutionRequest, ConnectorRuntimeContext
             
-            platform = self.env['nexora_studio.platform']
-            runtime = platform.get_runtime()
-            adapter = runtime.get_runtime('mcp_runtime')
+            bootstrap = ConnectorPlatformBootstrap.get_instance()
+            if not bootstrap or not bootstrap.connector_runtime:
+                return ProviderExecutionResult(success=False, data=None, error=f"{self._description} failed: ConnectorRuntime unavailable.", execution_ms=(time.time()-start_time)*1000)
             
-            if not adapter:
-                return ProviderExecutionResult(success=False, data=None, error=f"{self._description} failed: MCP Runtime unavailable.", execution_ms=(time.time()-start_time)*1000)
-                
             mcp_tool = request.payload.get('mcp_tool', request.namespace)
-            # Since execute is synchronous, we run the router coroutine threadsafe
-            future = asyncio.run_coroutine_threadsafe(
-                adapter.router.execute_capability(mcp_tool, request.payload), 
-                adapter._loop
-            )
-            result = future.result(timeout=60.0)
+            args = {k: v for k, v in request.payload.items() if k != 'mcp_tool'}
             
-            return ProviderExecutionResult(success=True, data=result, error=None, execution_ms=(time.time()-start_time)*1000)
+            exec_req = ConnectorExecutionRequest(
+                capability_namespace="tools.call",
+                payload={
+                    "name": mcp_tool,
+                    "arguments": args
+                },
+                context=ConnectorRuntimeContext(
+                    connector_id="tavily_mcp",
+                    session_id=getattr(request, 'session_id', 'provider_execution')
+                )
+            )
+            
+            result = bootstrap.connector_runtime.dispatch(exec_req)
+            
+            if not result.success:
+                return ProviderExecutionResult(
+                    success=False, 
+                    data=None, 
+                    error=f"Tavily MCP error: {result.error} (Code: {result.error_code})", 
+                    execution_ms=(time.time()-start_time)*1000
+                )
+                
+            return ProviderExecutionResult(
+                success=True, 
+                data=result.data, 
+                error=None, 
+                execution_ms=(time.time()-start_time)*1000
+            )
 
         except Exception as e:
             _logger.error(f"Tavily MCP execution error: {e}")
