@@ -309,3 +309,44 @@ class McpOnboardingService:
                 extra={'connector_id': connector_id}
             )
 
+    def reconstruct_runtime_configurations(self) -> None:
+        """
+        Reconstructs the Connector.configuration object for all active MCP connectors
+        in the registry after a restart using the persistent metadata and existing credentials.
+        """
+        for connector in self._runtime.registry.get_all():
+            if connector.configuration is None:
+                record = self._env['nexora.connector'].search([('connector_id', '=', connector.connector_id)], limit=1)
+                if not record:
+                    continue
+
+                # Check if it's an MCP connector type
+                ctype = record.connector_type_id.type_code if record.connector_type_id else 'mock'
+                if ctype != 'mcp':
+                    continue
+
+                try:
+                    mcp_config_record = self._get_mcp_config(record)
+                    mcp_config = self._build_mcp_configuration(record, mcp_config_record)
+
+                    # Reconstruct manifest to ensure _DEFAULT_MCP_CAPABILITIES are present
+                    connector.manifest = self._build_manifest(record)
+
+                    # Construct ConnectorConfiguration and assign it to the in-memory domain aggregate
+                    from odoo.addons.nexora_studio.services.connector.domain.models import ConnectorConfiguration
+                    connector.configuration = ConnectorConfiguration(
+                        connector_id=connector.connector_id,
+                        user_overrides={
+                            'command': mcp_config.command,
+                            'transport': mcp_config.transport,
+                            'args': mcp_config.args,
+                            'env': mcp_config.env or {},
+                            'auth_location': mcp_config.auth_location,
+                            'auth_name': mcp_config.auth_name,
+                            'auth_scheme': mcp_config.auth_scheme,
+                            'auth_secret': mcp_config.auth_secret,
+                        }
+                    )
+                    _logger.info("McpOnboardingService: successfully reconstructed runtime configuration for '%s'", connector.connector_id)
+                except Exception as e:
+                    _logger.warning("McpOnboardingService: failed to reconstruct configuration for '%s': %s", connector.connector_id, e)
