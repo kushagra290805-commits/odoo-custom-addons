@@ -14,7 +14,44 @@
         "get": "get_file_contents"
     },
     "default_payload": {
-        "repo": "DavidHDev/react-bits"
+        "repo": "react-bits",
+        "owner": "DavidHDev"
+    },
+    "payload_mapping": {
+        "get": {
+            "path": "id"
+        }
+    },
+    "normalization": {
+        "component_id": "path",
+        "name": "name"
+    }
+}]]></field>
+        </record>
+        <record id="source_shadcn" model="nexora.source_registry">
+            <field name="name">shadcn/ui</field>
+            <field name="technical_name">shadcn</field>
+            <field name="adapter_class">McpSourceAdapter</field>
+            <field name="connector_id" search="[('connector_id', '=', 'github_mcp')]"/>
+            <field name="sequence">20</field>
+            <field name="capabilities">SEARCH,GET</field>
+            <field name="config_json"><![CDATA[{
+    "capability_map": {
+        "search": "search_code",
+        "get": "get_file_contents"
+    },
+    "default_payload": {
+        "repo": "ui",
+        "owner": "shadcn-ui"
+    },
+    "payload_mapping": {
+        "get": {
+            "path": "id"
+        }
+    },
+    "normalization": {
+        "component_id": "path",
+        "name": "name"
     }
 }]]></field>
         </record>

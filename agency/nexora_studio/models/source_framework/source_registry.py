@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields
+from odoo import models, fields, api
 
 class SourceRegistry(models.Model):
     _name = 'nexora.source_registry'
@@ -26,6 +26,7 @@ class SourceRegistry(models.Model):
         ('technical_name_uniq', 'unique(technical_name)', 'The technical name of the provider must be unique!')
     ]
     
+    @api.depends('adapter_class')
     def _compute_is_mcp(self):
         for record in self:
             record.is_mcp = 'McpSourceAdapter' in (record.adapter_class or '')
