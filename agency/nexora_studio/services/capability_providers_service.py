@@ -63,15 +63,6 @@ class CapabilityProvidersService(models.AbstractModel):
                 'dependencies': ['python:google-api-python-client']
             },
             {
-                'capability_id': 'mcp.firecrawl',
-                'capability_code': 'firecrawl',
-                'display_name': 'Firecrawl Website Scraper',
-                'category': 'Business Intelligence',
-                'provider': 'firecrawl',
-                'implementation_model': 'nexora.provider.firecrawl',
-                'dependencies': ['python:firecrawl-py']
-            },
-            {
                 'capability_id': 'mcp.github',
                 'capability_code': 'github',
                 'display_name': 'GitHub API',

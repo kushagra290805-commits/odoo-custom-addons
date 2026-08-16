@@ -51,6 +51,7 @@
         'data/nexora_capability_cron.xml',
         'data/provider_actions.xml',
         'data/source_registry_data.xml',
+        'data/connector_firecrawl_data.xml',
         # Phase 26 — Universal Connector Platform
         'data/connector_health_cron.xml',
         'views/connector_views.xml',

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Firecrawl Connector -->
+        <record id="connector_firecrawl_mcp" model="nexora.connector">
+            <field name="name">Firecrawl Extraction MCP</field>
+            <field name="connector_id">firecrawl_mcp</field>
+            <field name="connector_type_id" search="[('type_code', '=', 'mcp')]"/>
+            <field name="version">1.0.0</field>
+            <field name="state">registered</field>
+            <field name="enabled">1</field>
+            <field name="description">Official Firecrawl MCP server for web extraction, search, and scraping.</field>
+            <field name="author">MendableAI</field>
+            <field name="homepage_url">https://github.com/mendableai/firecrawl-mcp</field>
+        </record>
+
+        <!-- Firecrawl MCP Server Configuration -->
+        <record id="config_firecrawl_mcp" model="nexora.mcp_server_config">
+            <field name="connector_id" ref="connector_firecrawl_mcp"/>
+            <field name="transport_type">stdio</field>
+            <field name="command">npx</field>
+            <field name="args_json">["-y", "firecrawl-mcp"]</field>
+            <field name="env_vars_json"><![CDATA[{}]]></field>
+            <field name="timeout_seconds">60</field>
+            <field name="startup_policy">lazy</field>
+        </record>
+    </data>
+</odoo>
