@@ -61,6 +61,36 @@ class ConnectorExecutionStatus(str, Enum):
     PARTIAL = "partial"
 
 
+class ConnectorFailureClass(str, Enum):
+    CONFIGURATION_ERROR = "configuration_error"
+    CREDENTIAL_ERROR = "credential_error"
+    PROCESS_EXIT = "process_exit"
+    TRANSPORT_ERROR = "transport_error"
+    SSE_DISCONNECT = "sse_disconnect"
+    TIMEOUT = "timeout"
+    HANDSHAKE_ERROR = "handshake_error"
+    PROTOCOL_ERROR = "protocol_error"
+    CAPABILITY_DISCOVERY_ERROR = "capability_discovery_error"
+    UNKNOWN_ERROR = "unknown_error"
+
+    def is_recoverable(self) -> bool:
+        """Returns True if the failure is unconditionally recoverable (e.g. transient transport death)."""
+        return self in (
+            ConnectorFailureClass.PROCESS_EXIT,
+            ConnectorFailureClass.TRANSPORT_ERROR,
+            ConnectorFailureClass.SSE_DISCONNECT,
+            ConnectorFailureClass.TIMEOUT,
+        )
+
+    def is_conditionally_recoverable(self) -> bool:
+        """Returns True if the failure is recoverable but requires external changes or limited retries."""
+        return self in (
+            ConnectorFailureClass.CREDENTIAL_ERROR,
+            ConnectorFailureClass.CAPABILITY_DISCOVERY_ERROR,
+            ConnectorFailureClass.HANDSHAKE_ERROR,
+        )
+
+
 class CredentialType(str, Enum):
     NONE = "none"
     API_KEY = "api_key"
@@ -226,26 +256,26 @@ class ConnectorEnvironment:
     environment_type: ConnectorEnvironmentType
     description: str = ""
     active: bool = True
-    
+
     # Runtime Characteristics
     operating_system: str = ""
     architecture: str = ""
     python_version: str = ""
     runtime_version: str = ""
     container_runtime: str = ""
-    
+
     # Execution Constraints
     internet_access: bool = True
     filesystem_access: bool = True
     max_memory_mb: int = 1024
     max_cpu_cores: float = 1.0
     max_execution_time_s: int = 300
-    
+
     # Configuration
     environment_variables: Dict[str, str] = field(default_factory=dict)
     default_configuration: Dict[str, Any] = field(default_factory=dict)
     secret_provider_reference: str = ""
-    
+
     # Metadata
     tags: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)

@@ -115,7 +115,7 @@ class ConnectorDispatcher:
         self.telemetry.record_histogram("dispatch.latency_ms", latency_ms)
         return result
 
-    def probe_health(self, connector_id: str, context: ExecutionContext) -> tuple[bool, float, str]:
+    def probe_health(self, connector_id: str, context: ExecutionContext) -> tuple[Optional[bool], float, str]:
         """
         Execute the lower-level health check on the specified connector instance.
         Returns a tuple of (success, latency_ms, error_message).
@@ -126,20 +126,22 @@ class ConnectorDispatcher:
             connector = self._registry.get(connector_id)
             if not connector:
                 return False, 0.0, "Connector not found in registry."
-                
+
             # Re-uses the exact same connector instance and lifecycle resolution
             sdk_connector = self._get_or_create_connector(connector, context)
             if sdk_connector is None:
+                if connector.configuration is None:
+                    return None, 0.0, ""
                 return False, 0.0, "Connector instance could not be created or is not running."
-                
+
             is_healthy = sdk_connector.check_health(context)
             latency_ms = (time.monotonic() - start_time) * 1000
-            
+
             if is_healthy:
                 return True, latency_ms, ""
             else:
                 return False, latency_ms, "Underlying health probe returned False."
-                
+
         except Exception as exc:
             latency_ms = (time.monotonic() - start_time) * 1000
             _logger.warning("ConnectorDispatcher: health probe failed for '%s': %s", connector_id, exc)
@@ -155,7 +157,7 @@ class ConnectorDispatcher:
         _log = logging.getLogger(__name__)
         namespace = request.capability_namespace
         connector_id = request.context.connector_id if request.context else None
-        
+
         if connector_id:
             _log.info(f"DISPATCHER: explicit routing to connector '{connector_id}' for '{namespace}'")
             connector = self._registry.get(connector_id)
@@ -178,7 +180,7 @@ class ConnectorDispatcher:
         _log.info(f"DISPATCHER: registry.get('{primary_id}') = {connector}")
         if connector is not None:
             _log.info(f"DISPATCHER: connector state = {connector.lifecycle_state}, is_running = {connector.is_running}")
-            
+
         if connector is None or not connector.is_running:
             # Primary is down — try next in failover chain
             for fallback_id in self._capability_index.get_all(namespace)[1:]:
@@ -195,6 +197,9 @@ class ConnectorDispatcher:
 
     def _get_or_create_connector(self, connector: Connector, context: ExecutionContext) -> Optional[object]:
         if not self._connector_factory:
+            return None
+        if connector.configuration is None:
+            _logger.debug("Connector '%s' configuration not yet resolved, preventing instantiation.", connector.connector_id)
             return None
         if connector.connector_id not in self._active_connectors:
             try:
@@ -225,7 +230,7 @@ class ConnectorDispatcher:
                 ),
                 error_code="NO_EXECUTION_ADAPTER",
             )
-            
+
         try:
             sdk_connector = self._get_or_create_connector(connector, request.context)
             if not sdk_connector:
@@ -234,7 +239,7 @@ class ConnectorDispatcher:
                     error="Failed to create or initialize the underlying SDK connector.",
                     error_code="NO_EXECUTION_ADAPTER",
                 )
-            
+
             try:
                 data = sdk_connector.execute(
                     capability_namespace=request.capability_namespace,
@@ -250,7 +255,7 @@ class ConnectorDispatcher:
                 except Exception:
                     pass
                 raise inner_e
-                
+
         except Exception as exc:
             raise exc
 
@@ -267,3 +272,51 @@ class ConnectorDispatcher:
         """Shutdown all active connector instances."""
         for connector_id in list(self._active_connectors.keys()):
             self.shutdown_connector(connector_id)
+
+    def initialize_and_verify(self, connector: Connector, context: ExecutionContext) -> ConnectorExecutionResult:
+        """
+        Canonical primitive to initialize a transport and perform the protocol handshake.
+        Used by both initial registration and recovery mechanisms.
+        """
+        start_time = time.monotonic()
+        try:
+            # 1. Transport Boot & Config Initialization
+            sdk_connector = self._get_or_create_connector(connector, context)
+            if not sdk_connector:
+                return ConnectorExecutionResult.fail(
+                    request_id=getattr(context, 'session_id', 'init'),
+                    error="Failed to create or initialize the underlying SDK connector.",
+                    error_code="TRANSPORT_INIT_FAILED"
+                )
+
+            # 2. Handshake / Verification (tools.list)
+            # This establishes that the transport is operational and speaking the correct protocol
+            req = ConnectorExecutionRequest(
+                capability_namespace='tools.list',
+                context=context,
+                timeout_seconds=30.0,
+                payload={}
+            )
+            data = sdk_connector.execute(
+                capability_namespace=req.capability_namespace,
+                parameters=req.payload,
+                context=req.context
+            )
+            result = ConnectorExecutionResult.ok(getattr(context, 'session_id', 'init'), data)
+            result.execution_ms = (time.monotonic() - start_time) * 1000
+            return result
+
+        except Exception as exc:
+            # Clean up the broken transport immediately so next call starts fresh
+            self.shutdown_connector(connector.connector_id, context)
+            execution_ms = (time.monotonic() - start_time) * 1000
+            _logger.error(
+                "ConnectorDispatcher: initialization handshake failed for '%s': %s",
+                connector.connector_id, exc, exc_info=True
+            )
+            return ConnectorExecutionResult.fail(
+                request_id=getattr(context, 'session_id', 'init'),
+                error=str(exc),
+                error_code="HANDSHAKE_FAILED",
+                execution_ms=execution_ms,
+            )

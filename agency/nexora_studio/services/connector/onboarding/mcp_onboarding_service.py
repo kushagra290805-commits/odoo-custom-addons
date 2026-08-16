@@ -88,25 +88,29 @@ class McpOnboardingService:
         connector_domain = self._build_connector_domain(manifest, connector_record, mcp_config)
 
         self._pipeline.execute(connector_domain)
-        
-        # Phase 29.6 — Handshake verification
+        # Phase 35.4 — Canonical transport initialization and handshake
         try:
-            # Force dispatcher to initialize the session and verify it works
             if hasattr(self._runtime, 'dispatcher'):
-                from odoo.addons.nexora_studio.services.connector.domain.models import ConnectorExecutionRequest
-                request = ConnectorExecutionRequest(
-                    capability_namespace='tools.list',
-                    payload={}
-                )
-                # Dispatch directly to this specific connector instance
-                result = self._runtime.dispatcher._execute_on_connector(connector_domain, request)
+                from odoo.addons.nexora_studio.services.connector.sdk.context import ExecutionContext
+                context = ExecutionContext(connector_id=connector_id, request_id='register_init', capability_namespace='init')
+
+                result = self._runtime.dispatcher.initialize_and_verify(connector_domain, context)
                 from odoo.addons.nexora_studio.services.connector.domain.models import ConnectorExecutionStatus
                 if result.status == ConnectorExecutionStatus.FAILURE:
                     raise Exception(result.error)
+
+                # Post-handshake: Capability Discovery
+                from odoo.addons.nexora_studio.services.connector.onboarding.capability_discovery import McpCapabilityDiscoveryService
+                discovery = McpCapabilityDiscoveryService(self._runtime, self._env)
+                discovery.discover(connector_record)
+
+                # Reconcile capabilities in memory
+                self._runtime.rebuild_capability_index()
+
         except Exception as e:
             import traceback
             _logger.error(f"DIAGNOSTIC: register_connector inner exception:\n{traceback.format_exc()}")
-            # If handshake fails, unregister and propagate the error
+            # If handshake or discovery fails, unregister and propagate the error
             self.deregister_connector(connector_id)
             raise ConnectorConfigurationError(
                 error_code='HANDSHAKE_FAILED',

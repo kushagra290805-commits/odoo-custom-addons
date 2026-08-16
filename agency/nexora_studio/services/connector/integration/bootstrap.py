@@ -79,6 +79,16 @@ class ConnectorPlatformBootstrap:
                     self._executor_target = self._create_executor_target()
                     self._register_executor_with_ucel(env)
                     self._connector_runtime.startup()
+
+                    if env:
+                        try:
+                            from odoo.addons.nexora_studio.services.connector.onboarding.mcp_onboarding_service import McpOnboardingService
+                            onboarding = McpOnboardingService(self._connector_runtime, self._connector_runtime.registration_pipeline, env)
+                            onboarding.reconstruct_runtime_configurations()
+                            self._connector_runtime._rebuild_capability_index()
+                        except Exception as e:
+                            _logger.warning("ConnectorPlatformBootstrap: failed to reconstruct configurations: %s", e)
+
                     self._wire_generation_runtime_bridge(env)
                     self._state = BootstrapState.READY
                     _logger.info("ConnectorPlatformBootstrap: Connector Platform started successfully.")
@@ -98,9 +108,17 @@ class ConnectorPlatformBootstrap:
                         adapter = OdooConnectorPersistenceAdapter(env)
                         service = ConnectorPersistenceService(adapter)
                         self._connector_runtime.registry._persistence = service
-                        
+
                         count = self._connector_runtime.registry.sync_from_odoo()
                         _logger.info("ConnectorPlatformBootstrap: deferred sync loaded %d connectors.", count)
+
+                        try:
+                            from odoo.addons.nexora_studio.services.connector.onboarding.mcp_onboarding_service import McpOnboardingService
+                            onboarding = McpOnboardingService(self._connector_runtime, self._connector_runtime.registration_pipeline, env)
+                            onboarding.reconstruct_runtime_configurations()
+                        except Exception as e:
+                            _logger.warning("ConnectorPlatformBootstrap: failed to reconstruct configurations after upgrade: %s", e)
+
                         self._connector_runtime._rebuild_capability_index()
                         self._state = BootstrapState.READY
                     except Exception as exc:
@@ -201,20 +219,24 @@ class ConnectorPlatformBootstrap:
         for connector in self._connector_runtime.registry.get_all():
             if connector.lifecycle_state in (ConnectorLifecycleState.RUNNING, ConnectorLifecycleState.HEALTHY, ConnectorLifecycleState.PAUSED):
                 connector_id = connector.connector_id
-                
+
                 # Fetch fresh record in the isolated environment
                 record = env['nexora.connector'].search([('connector_id', '=', connector_id)], limit=1)
                 if not record:
                     continue
-                    
+
                 connector_type = record.connector_type_id.type_code if record.connector_type_id else ''
                 if connector_type != 'mcp':
                     continue
-                    
+
                 _logger.info("ConnectorPlatformBootstrap: Reconciling startup state for '%s'...", connector_id)
                 try:
                     self._connector_runtime.registry.unregister(connector_id)
                     onboarding.register_connector(record)
+
+                    # Phase 35.2: Clear any stale error messages upon successful recovery
+                    record.write({'error_message': False})
+
                     env.cr.commit()
                     _logger.info("ConnectorPlatformBootstrap: Successfully verified and restored '%s' to %s.", connector_id, connector.lifecycle_state.value)
                 except Exception as e:
