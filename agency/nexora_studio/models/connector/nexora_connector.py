@@ -192,8 +192,10 @@ class NexoraConnector(models.Model):
             service = McpCapabilityDiscoveryService(runtime, self.env)
             service.discover(self)
         except Exception as e:
-            import traceback
-            raise UserError(f"Discovery failed: {e}\nRuntime Type: {type(runtime)}\n{traceback.format_exc()}")
+            # Phase 44.2 (W1): full traceback stays server-side; the user-facing
+            # message must never carry internal tracebacks or credential details.
+            _logger.exception("MCP capability discovery failed for connector %s", self.id)
+            raise UserError(f"Discovery failed: {type(e).__name__}. Check server logs for details.")
 
     # ------------------------------------------------------------------
     # Related records
@@ -244,13 +246,19 @@ class NexoraConnector(models.Model):
                         # 2. Attempt registration (this validates config, credentials, handshake)
                         onboarding.register_connector(record)
                         
-                        # 3. Only if successful, persist running
+                        # 3. Only if successful, persist running.
+                        # Phase 44.2 (W5 / G-05): truthful health — enablement
+                        # proves registration/handshake, not sustained health.
+                        # health_status stays 'unknown' until a real probe
+                        # succeeds (cron / probe_health).
                         record.state = 'running'
+                        record.health_status = 'unknown'
                         record.error_message = ''
                     except Exception as e:
                         # 4. If failed, persist failed immediately and notify user
                         record.state = 'failed'
-                        record.error_message = f"Activation failed: {str(e)}"
+                        record.health_status = 'failed'
+                        record.error_message = f"Activation failed: {type(e).__name__}"
                         from odoo.exceptions import UserError
                         raise UserError(record.error_message)
                 else:
@@ -285,29 +293,18 @@ class NexoraConnector(models.Model):
         if not runtime or not runtime._initialized:
             return
             
-        eligible_connectors = self.search([('state', 'in', ['running', 'healthy', 'degraded'])])
-        
+        # Phase 44.2 (W5 / G-38): 'degraded' is a health_status value, not a
+        # lifecycle state. Probe every connector in an active lifecycle state.
+        eligible_connectors = self.search([('state', 'in', ['running', 'healthy', 'paused'])])
+
         for record in eligible_connectors:
             try:
                 # 1. Dispatch probe via runtime (this triggers dispatcher -> health_monitor)
-                health_result = runtime.probe_health(record.connector_id)
-                
-                if health_result:
-                    from datetime import datetime
-                    # 2. Update canonical health tracking fields on Odoo record
-                    update_vals = {
-                        'health_status': health_result.status.value,
-                        'last_health_check': datetime.utcnow()
-                    }
-                    if health_result.status.value == 'failed':
-                        update_vals['error_message'] = getattr(health_result, 'error_detail', '')
-                    else:
-                        update_vals['error_message'] = False
-                        
-                    record.write(update_vals)
+                # The runtime/health monitor is the canonical owner of persistence via the persistence port.
+                # We do not duplicate persistence writes here to avoid transaction locks.
+                runtime.probe_health(record.connector_id)
             except Exception as e:
-                import logging
-                logging.getLogger(__name__).exception("Health check failed for connector %s", record.connector_id)
+                _logger.warning("Cron health check failed for %s: %s", record.connector_id, e)
 
     # ------------------------------------------------------------------
     # Phase 28 — ORM Hooks for Runtime Synchronization

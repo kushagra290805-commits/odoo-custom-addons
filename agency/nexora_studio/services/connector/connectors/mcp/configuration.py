@@ -11,12 +11,24 @@ class McpConfiguration:
     args: List[str] = field(default_factory=list)
     env: Optional[Dict[str, str]] = None
     trace_file: Optional[str] = None
+    allowed_request_context_fields: List[str] = field(default_factory=list)
+
+    # Phase 44.2 (W8): plumbed from nexora.mcp_server_config so the operator
+    # value is actually honored instead of the hardcoded transport defaults.
+    timeout_seconds: int = 60
+    # stdio only: working directory for the MCP server process (cwd).
+    working_directory: Optional[str] = None
 
     # Generic Authentication
     auth_location: str = 'none'
     auth_name: str = ''
     auth_scheme: str = 'none'
     auth_secret: str = ''
+
+    # Session Binding
+    session_binding: str = 'none'
+    session_binding_field: str = ''
+    session_binding_location: str = 'query'
 
     def __post_init__(self):
         if self.transport == 'stdio':

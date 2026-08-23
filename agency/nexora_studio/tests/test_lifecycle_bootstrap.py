@@ -1,3 +1,4 @@
+import threading
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -8,15 +9,25 @@ class TestLifecycleBootstrap(unittest.TestCase):
         self.bootstrap = ConnectorPlatformBootstrap.get_instance()
         self.bootstrap._state = BootstrapState.UNINITIALIZED
         self.bootstrap._connector_runtime = None
-        
+
         self.env = MagicMock()
         self.env.registry.db_name = 'test_db'
+        self.env.cr.closed = False
+        # The persistence adapter detects a live test environment via
+        # threading.current_thread().testing (set by the odoo test runner).
+        # Replicate it so the adapter uses the provided mock env directly
+        # instead of trying to open a real Registry cursor.
+        threading.current_thread().testing = True
 
     def tearDown(self):
         from odoo.addons.nexora_studio.services.connector.integration.bootstrap import ConnectorPlatformBootstrap, BootstrapState
         self.bootstrap = ConnectorPlatformBootstrap.get_instance()
         self.bootstrap._state = BootstrapState.UNINITIALIZED
         self.bootstrap._connector_runtime = None
+        try:
+            del threading.current_thread().testing
+        except AttributeError:
+            pass
 
     def test_1_bootstrap_creates_runtime(self):
         """1. bootstrap(env) creates persistent runtime."""
@@ -108,16 +119,22 @@ class TestLifecycleBootstrap(unittest.TestCase):
         # Assertions
         # Both records should have been processed
         self.assertEqual(mock_register.call_count, 2)
-        
-        # Context7 should be written as failed
+
+        # Context7 should be written as failed. Phase 44.2 (W5): the
+        # persisted error_message carries only the exception type name —
+        # never raw exception text (which may leak paths or details).
         record2.write.assert_called_once_with({
             'state': 'failed',
             'health_status': 'failed',
-            'error_message': 'Startup reconciliation failed: Network timeout'
+            'error_message': 'Startup reconciliation failed: Exception'
         })
-        
-        # GitHub should NOT have been downgraded
-        record1.write.assert_not_called()
+
+        # GitHub succeeded: stale error cleared, but health stays 'unknown'
+        # until a real probe succeeds (Phase 44.2 W5 / G-05 truthful health).
+        record1.write.assert_called_once_with({
+            'error_message': False,
+            'health_status': 'unknown'
+        })
 
 if __name__ == '__main__':
     import sys

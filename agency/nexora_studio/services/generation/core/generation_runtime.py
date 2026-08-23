@@ -46,9 +46,6 @@ class GenerationRuntime:
         from odoo.addons.nexora_studio.services.capabilities.scheduler import ExecutionScheduler
         from odoo.addons.nexora_studio.services.capabilities.router import UniversalCapabilityRouter
         from odoo.addons.nexora_studio.services.capabilities.executors.local import LocalToolExecutor
-        from odoo.addons.nexora_studio.services.capabilities.executors.remote import RemoteToolExecutor
-        from odoo.addons.nexora_studio.services.capabilities.remote.transport import TransportLayer
-        from odoo.addons.nexora_studio.services.capabilities.remote.protocol import ProtocolLayer
         from odoo.http import request
         
         env = None
@@ -67,15 +64,47 @@ class GenerationRuntime:
         self.execution_strategy = ExecutionStrategy()
         self.execution_scheduler = ExecutionScheduler(self.execution_strategy)
         
-        from odoo.addons.nexora_studio.services.capabilities.remote.session import McpSessionManager
-        self.mcp_session_manager = McpSessionManager()
-        self.protocol_layer = ProtocolLayer(self.mcp_session_manager)
-        self.transport_layer = TransportLayer(self.protocol_layer)
-        
         executors = {
-            ExecutionTargetType.LOCAL: LocalToolExecutor(self.tool_registry),
-            ExecutionTargetType.REMOTE: RemoteToolExecutor(self.transport_layer)
+            ExecutionTargetType.LOCAL: LocalToolExecutor(self.tool_registry)
         }
+        
+        from odoo.addons.nexora_studio.services.connector.integration.connector_executor import ConnectorExecutionTarget
+        from odoo.addons.nexora_studio.services.connector.integration.bootstrap import get_connector_runtime
+        # Phase 44.2 (W2 / ADR-0068): the CONNECTOR executor is always
+        # registered. RemoteToolExecutor is deliberately NOT registered —
+        # connector-backed capabilities (stdio AND sse) route through
+        # ConnectorExecutionTarget; a missing runtime fails closed with a
+        # real failure, never a mock success.
+        connector_runtime = get_connector_runtime()
+        executors[ExecutionTargetType.CONNECTOR] = ConnectorExecutionTarget(connector_runtime)
+
+        # Phase 44.2 closure (C-04 / PV-10): executor completeness is a boot
+        # invariant. A missing executor for a type any live registry row can
+        # resolve to must be a startup failure, not a per-request
+        # "Executor not found". REMOTE is deliberately unregistered
+        # (RemoteToolExecutor returns unconditional success — audit §17.9);
+        # _derive_target_type yields REMOTE only for remote-only rows, so a
+        # live remote-only row correctly refuses the boot here.
+        try:
+            from odoo.addons.nexora_studio.services.capabilities.repository import (
+                _derive_target_type,
+            )
+            _live_types = {
+                _derive_target_type(r)
+                for r in self.capability_repository.get_all_registry_records()
+            }
+        except Exception as exc:
+            raise RuntimeError(
+                "Executor completeness check failed: could not enumerate live "
+                f"capability registry target types ({exc})."
+            ) from exc
+        _missing = sorted(t.name for t in _live_types - set(executors.keys()))
+        if _missing:
+            raise RuntimeError(
+                "Executor registration incomplete at boot: no executor registered "
+                f"for ExecutionTargetType(s) {_missing}, which live capabilities resolve to. "
+                "Refusing to construct GenerationRuntime."
+            )
         
         self.ucel_router = UniversalCapabilityRouter(
             self.capability_resolver,

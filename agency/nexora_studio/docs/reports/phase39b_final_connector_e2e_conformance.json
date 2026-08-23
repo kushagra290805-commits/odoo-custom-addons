@@ -1,0 +1,72 @@
+[
+  {
+    "connector": "github_mcp",
+    "registration": "PASS",
+    "transport": "PASS",
+    "handshake": "PASS",
+    "tools_list": "PASS",
+    "tools_call": "PASS",
+    "post_call_health": "PASS",
+    "verdict": "PASS",
+    "evidence": {
+      "tools_list": "Returned 26 tools in 0.01s",
+      "tools_call": "Success for list_branches in 1.04s. Response: {'content': [{'type': 'text', 'text': '[{\"name\":\"5.0\",\"sha\":\"6d5118a629678145e664961c071d28df1295b95f\",\"protected\":true},{\"name\":\"6.0\",\"sha\":\"1eaf4660"
+    }
+  },
+  {
+    "connector": "context7_mcp",
+    "registration": "PASS",
+    "transport": "PASS",
+    "handshake": "PASS",
+    "tools_list": "PASS",
+    "tools_call": "PASS",
+    "post_call_health": "PASS",
+    "verdict": "PASS",
+    "evidence": {
+      "tools_list": "Returned 2 tools in 0.00s",
+      "tools_call": "Success for query-docs in 0.00s. Response: {'content': [{'type': 'text', 'text': 'Input validation error: Invalid arguments for tool query-docs: libraryId: Invalid input: expected string, recei"
+    }
+  },
+  {
+    "connector": "firecrawl_mcp",
+    "registration": "PASS",
+    "transport": "PASS",
+    "handshake": "PASS",
+    "tools_list": "PASS",
+    "tools_call": "PASS",
+    "post_call_health": "PASS",
+    "verdict": "PASS",
+    "evidence": {
+      "tools_list": "Returned 27 tools in 2.72s",
+      "tools_call": "Success for firecrawl_search in 3.60s. Response: {'content': [{'type': 'text', 'text': '{\\n  \"success\": true,\\n  \"data\": {\\n    \"web\": [\\n      {\\n        \"url\": \"https://www.odoo.com/odoo-18-release"
+    }
+  },
+  {
+    "connector": "penpot_mcp",
+    "registration": "PASS",
+    "transport": "PASS",
+    "handshake": "PASS",
+    "tools_list": "PASS",
+    "tools_call": "PASS",
+    "post_call_health": "PASS",
+    "verdict": "PASS",
+    "evidence": {
+      "tools_list": "Returned 4 tools in 0.12s",
+      "tools_call": "Success for penpot_api_info in 0.07s. Response: {'content': [{'type': 'text', 'text': 'MCP error -32602: Input validation error: Invalid arguments for tool penpot_api_info: [\\n  {\\n    \"expected\": \""
+    }
+  },
+  {
+    "connector": "tavily_mcp",
+    "registration": "PASS",
+    "transport": "PASS",
+    "handshake": "PASS",
+    "tools_list": "PASS",
+    "tools_call": "PASS",
+    "post_call_health": "PASS",
+    "verdict": "PASS",
+    "evidence": {
+      "tools_list": "Returned 5 tools in 2.07s",
+      "tools_call": "Success for tavily_search in 1.51s. Response: {'content': [{'type': 'text', 'text': 'Detailed Results:\\n\\nTitle: Model Context Protocol - Wikipedia\\nID: c524f1-00\\nURL: https://en.wikipedia.org/wi"
+    }
+  }
+]

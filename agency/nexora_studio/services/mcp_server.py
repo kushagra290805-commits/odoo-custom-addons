@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# LEGACY / NON-CANONICAL (Phase 44.2, W12, ADR-0068):
+# Legacy Odoo-model MCP service consumed by the legacy AI provider platform.
+# NOT part of the canonical connector runtime path. Do not wire new MCP work
+# through it. Removal DEFERRED (out of Phase 44.2 scope).
 from odoo import models, api, fields, _
 from odoo.exceptions import ValidationError
 import logging

@@ -8,7 +8,11 @@ the full JSON schema to nexora.mcp_discovered_tool records.
 
 Key behaviors:
 - Uses the global ConnectorRuntime (connector must be registered and running)
-- Each discovery run REPLACES previous results (not appended)
+- Phase 44.2 (W11): persistence is NON-DESTRUCTIVE. Each discovery source
+  (tools/resources/prompts) is upserted independently, keyed on
+  (connector_id, tool_name, discovery_source). A source whose list call
+  FAILED is skipped entirely — its previously persisted rows are preserved.
+  Persistence only happens for sources that returned a real result.
 - Does NOT generate Python classes for discovered tools
 - Does NOT hardcode tool names in source code
 - Updates nexora.mcp_server_config.discovered_capabilities_count
@@ -18,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from odoo.addons.nexora_studio.services.connector.domain.models import (
     ConnectorExecutionRequest,
@@ -41,24 +45,29 @@ class McpCapabilityDiscoveryService:
             odoo_env: Odoo environment
         """
         if runtime is None:
-            from odoo.addons.nexora_studio.services.connector.runtime.connector_runtime import ConnectorRuntime
-            from odoo.addons.nexora_studio.services.connector.registry.persistence.odoo_adapter import OdooConnectorPersistenceAdapter
-            runtime = ConnectorRuntime(persistence_port=OdooConnectorPersistenceAdapter(odoo_env))
-            runtime.startup()
+            raise ValueError("McpCapabilityDiscoveryService requires an active ConnectorRuntime instance.")
             
         self._runtime = runtime
         self._env = odoo_env
 
-    def discover(self, connector_record) -> Dict[str, int]:
+    def discover(self, connector_record) -> Dict[str, Any]:
         """
         Discover all capabilities from the MCP server and persist to Odoo.
-        Previous discovery results for this connector are REPLACED.
+
+        Phase 44.2 (W11): non-destructive semantics.
+        - Each source is persisted only if its list call SUCCEEDED.
+        - A failed source keeps its previously persisted rows untouched.
+        - Persistence is an upsert keyed on
+          (connector_id, tool_name, discovery_source); rows no longer
+          returned by a successful source are removed.
 
         Args:
             connector_record: nexora.connector Odoo record
 
         Returns:
             Dict with 'tool_count', 'resource_count', 'prompt_count'
+            (counts from this run; 0 for failed sources) and 'persisted'
+            (True if at least one source was persisted).
         """
         connector_id = connector_record.connector_id
         _logger.info(
@@ -68,17 +77,18 @@ class McpCapabilityDiscoveryService:
 
         ctx = ConnectorRuntimeContext(connector_id=connector_id, session_id='discovery')
 
+        # None = dispatch failed → skip persistence for that source.
         tools = self._discover_tools(connector_id, ctx)
         resources = self._discover_resources(connector_id, ctx)
         prompts = self._discover_prompts(connector_id, ctx)
 
-        # Replace all previous discovery results
-        self._replace_discovered_tools(connector_record, tools, resources, prompts)
+        persisted = self._upsert_discovered_tools(connector_record, tools, resources, prompts)
 
         counts = {
-            'tool_count': len(tools),
-            'resource_count': len(resources),
-            'prompt_count': len(prompts),
+            'tool_count': len(tools) if tools is not None else 0,
+            'resource_count': len(resources) if resources is not None else 0,
+            'prompt_count': len(prompts) if prompts is not None else 0,
+            'persisted': persisted,
         }
         _logger.info(
             "McpCapabilityDiscoveryService: discovery complete for '%s': %s",
@@ -91,27 +101,26 @@ class McpCapabilityDiscoveryService:
     # MCP Discovery Dispatchers
     # ------------------------------------------------------------------
 
-    def _discover_tools(self, connector_id: str, ctx: ConnectorRuntimeContext) -> List[Dict]:
+    def _discover_tools(self, connector_id: str, ctx: ConnectorRuntimeContext) -> Optional[List[Dict]]:
+        """Returns the tool list, or None if the dispatch failed (W11)."""
         req = ConnectorExecutionRequest(
             capability_namespace='tools.list',
             context=ctx,
             timeout_seconds=30.0,
         )
         result = self._runtime.dispatch(req)
-        
-        import logging
-        _logger = logging.getLogger(__name__)
-        _logger.info(f"DISCOVERY RESULT RAW: success={result.success}, data={result.data}, error={result.error}")
-        
+
+        # Phase 44.2 (W1): never log raw MCP payloads (may transit tokens/PII).
         if not result.success:
             _logger.warning(
                 "McpCapabilityDiscoveryService: tools.list failed for '%s': %s",
                 connector_id, result.error
             )
-            return []
+            return None
         return result.data.get('tools', []) if result.data else []
 
-    def _discover_resources(self, connector_id: str, ctx: ConnectorRuntimeContext) -> List[Dict]:
+    def _discover_resources(self, connector_id: str, ctx: ConnectorRuntimeContext) -> Optional[List[Dict]]:
+        """Returns the resource list, or None if the dispatch failed (W11)."""
         req = ConnectorExecutionRequest(
             capability_namespace='resources.list',
             context=ctx,
@@ -124,10 +133,11 @@ class McpCapabilityDiscoveryService:
                 connector_id, result.error,
                 extra={'connector_id': connector_id}
             )
-            return []
+            return None
         return result.data.get('resources', []) if result.data else []
 
-    def _discover_prompts(self, connector_id: str, ctx: ConnectorRuntimeContext) -> List[Dict]:
+    def _discover_prompts(self, connector_id: str, ctx: ConnectorRuntimeContext) -> Optional[List[Dict]]:
+        """Returns the prompt list, or None if the dispatch failed (W11)."""
         req = ConnectorExecutionRequest(
             capability_namespace='prompts.list',
             context=ctx,
@@ -140,48 +150,102 @@ class McpCapabilityDiscoveryService:
                 connector_id, result.error,
                 extra={'connector_id': connector_id}
             )
-            return []
+            return None
         return result.data.get('prompts', []) if result.data else []
 
     # ------------------------------------------------------------------
     # Odoo Persistence
     # ------------------------------------------------------------------
 
-    def _replace_discovered_tools(
+    def _upsert_discovered_tools(
         self,
         connector_record,
-        tools: List[Dict],
-        resources: List[Dict],
-        prompts: List[Dict],
+        tools: Optional[List[Dict]],
+        resources: Optional[List[Dict]],
+        prompts: Optional[List[Dict]],
+    ) -> bool:
+        """
+        Non-destructive persistence (Phase 44.2 / W11).
+
+        Each source is handled independently:
+        - None  → the list call failed; existing rows for that source are
+                  preserved untouched (a failure must never wipe data).
+        - list  → authoritative result; upsert rows keyed on
+                  (connector_id, tool_name, discovery_source) and remove
+                  rows the server no longer reports for that source.
+
+        Returns True if at least one source was persisted.
+        """
+        model = self._env['nexora.mcp_discovered_tool']
+        persisted_any = False
+
+        for items, source in (
+            (tools, 'tools'),
+            (resources, 'resources'),
+            (prompts, 'prompts'),
+        ):
+            if items is None:
+                # Failed dispatch: skip persistence, keep previous snapshot.
+                _logger.warning(
+                    "McpCapabilityDiscoveryService: skipping persistence for "
+                    "source '%s' (connector %s) — list call failed; previous "
+                    "rows preserved.", source, connector_record.connector_id,
+                    extra={'connector_id': connector_record.connector_id}
+                )
+                continue
+            self._upsert_source(connector_record, model, items, source)
+            persisted_any = True
+
+        if persisted_any:
+            # Update count on the config record
+            mcp_config = self._env['nexora.mcp_server_config'].search(
+                [('connector_id', '=', connector_record.id)], limit=1
+            )
+            if mcp_config:
+                # discovered_capabilities_count is computed — just invalidate the cache
+                mcp_config.invalidate_recordset(['discovered_capabilities_count'])
+
+        return persisted_any
+
+    def _upsert_source(
+        self,
+        connector_record,
+        model,
+        items: List[Dict],
+        source: str,
     ) -> None:
-        """Delete previous discovery results and insert new ones."""
-        # Delete previous results for this connector
-        self._env['nexora.mcp_discovered_tool'].search(
-            [('connector_id', '=', connector_record.id)]
-        ).unlink()
-
+        """Upsert one discovery source keyed on (connector_id, tool_name, discovery_source)."""
         now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+
+        existing = model.search([
+            ('connector_id', '=', connector_record.id),
+            ('discovery_source', '=', source),
+        ])
+        existing_by_name = {rec.tool_name: rec for rec in existing}
+
+        seen_names = set()
         to_create = []
-
-        for tool in tools:
-            to_create.append(self._tool_to_record(connector_record.id, tool, 'tools', now))
-
-        for resource in resources:
-            to_create.append(self._tool_to_record(connector_record.id, resource, 'resources', now))
-
-        for prompt in prompts:
-            to_create.append(self._tool_to_record(connector_record.id, prompt, 'prompts', now))
+        for item in items:
+            vals = self._tool_to_record(connector_record.id, item, source, now)
+            name = vals['tool_name']
+            seen_names.add(name)
+            rec = existing_by_name.get(name)
+            if rec is not None:
+                update_vals = dict(vals)
+                update_vals.pop('connector_id', None)
+                update_vals.pop('tool_name', None)
+                update_vals.pop('discovery_source', None)
+                rec.write(update_vals)
+            else:
+                to_create.append(vals)
 
         if to_create:
-            self._env['nexora.mcp_discovered_tool'].create(to_create)
+            model.create(to_create)
 
-        # Update count on the config record
-        mcp_config = self._env['nexora.mcp_server_config'].search(
-            [('connector_id', '=', connector_record.id)], limit=1
-        )
-        if mcp_config:
-            # discovered_capabilities_count is computed — just invalidate the cache
-            mcp_config.invalidate_recordset(['discovered_capabilities_count'])
+        # Remove rows the server no longer reports for this source only.
+        stale = existing.filtered(lambda r: r.tool_name not in seen_names)
+        if stale:
+            stale.unlink()
 
     def _tool_to_record(
         self,

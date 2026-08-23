@@ -277,8 +277,17 @@ class ReactRenderingProvider(RenderingProvider):
             if filepath.endswith('.jsx') or filepath.endswith('.js'):
                 if "import " not in code and "export " not in code:
                     errors.append(f"File {filepath} appears to lack JS/JSX modules syntax.")
-            if "three" in code.lower() and "three" not in filepath.lower():
-                errors.append(f"Prohibited 3D canvas engine reference found in {filepath}.")
+            code_lower = code.lower()
+            provider_id = self.get_metadata().provider_id
+            if "three" in code_lower and "three" not in filepath.lower():
+                # Check provider mode — only R3F and spline (which extends React) are allowed
+                if provider_id not in ("react_three_fiber", "spline"):
+                    errors.append(f"Prohibited 3D canvas engine reference found in {filepath}.")
+            if "@splinetool" in code_lower:
+                # Check provider mode — only standard react rejects @splinetool;
+                # both 3D providers (R3F and Spline) allow peer dependencies
+                if provider_id not in ("spline", "react_three_fiber"):
+                    errors.append(f"Prohibited Spline dependency reference found in {filepath}.")
 
         return {
             "valid": len(errors) == 0,

@@ -26,10 +26,33 @@ def post_init_provider_platform(env):
 def post_load_provider_platform():
     from .services.providers.container import bootstrap_container
     bootstrap_container(None)
-    
+
     try:
         from odoo.addons.nexora_studio.services.connector.integration.bootstrap import ConnectorPlatformBootstrap
         ConnectorPlatformBootstrap.get_instance().bootstrap(None)
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("Failed to bootstrap connector platform: %s", e)
+
+    # Phase 44.2 closure (C-25 / P8): MCP connectors hold live OS resources —
+    # stdio child processes and SSE sockets inside dedicated event-loop
+    # threads. Without this hook they survived until the OS reaped the worker,
+    # leaking npx/docker children between worker recycles. The teardown itself
+    # is the EXISTING canonical path (ConnectorPlatformBootstrap.shutdown ->
+    # ConnectorRuntime.shutdown -> dispatcher.shutdown_all ->
+    # McpConnector.shutdown -> McpTransport.disconnect); this only triggers it
+    # at worker/process exit. Idempotent (both layers early-return when not
+    # initialized) and defensive: during interpreter teardown even imports and
+    # the logging system may already be gone.
+    import atexit
+
+    def _shutdown_connector_platform():
+        try:
+            from odoo.addons.nexora_studio.services.connector.integration.bootstrap import (
+                ConnectorPlatformBootstrap as _B,
+            )
+            _B.get_instance().shutdown()
+        except Exception:
+            pass
+
+    atexit.register(_shutdown_connector_platform)

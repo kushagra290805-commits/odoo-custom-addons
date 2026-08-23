@@ -1,0 +1,22 @@
+# PC-2 certification database provisioning record
+# Phase 44.1 s18.0 PC-2 / s17 C-23
+
+provisioned_at        : 2026-08-22T13:52:09.1832834+05:30
+source_database       : nexora_studio
+certification_database: nexora_cert
+postgres_version      : 17.10
+method                : pg_dump -Fc  +  pg_restore --no-owner --no-privileges
+script                : docs/reports/artefacts/provision_cert_db.ps1
+odoo_config           : D:\ODOO\configs\cert.conf  (dbfilter = ^nexora_cert$, http_port 8169, data_dir D:\ODOO\data-cert)
+master_key_source     : environment variable NEXORA_CONNECTOR_SECRET_KEY only (PC-3)
+
+dump_file             : D:\ODOO\backups\nexora_studio_pre_cert.dump
+dump_bytes            : 5439268
+dump_sha256           : 23F0C171B7EB56AD4B62E6B133D9E0D76A20078BE08FE3D6B2870638B9F441B1
+
+restored_row_counts:
+  nexora_connector            : 5
+  nexora_mcp_discovered_tool  : 67
+  nexora_mcp_credential       : 5
+
+secrets_in_artefact   : none (no passwords, no credential values, lengths/hashes only)

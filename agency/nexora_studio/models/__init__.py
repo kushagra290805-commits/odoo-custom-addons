@@ -44,10 +44,10 @@ from . import builder_workspace_version
 from . import builder_execution_plan
 from . import platform_service
 from . import placeholder_provider
-from . import github_provider
+# Phase 44.2 closure (C-26 / P11): the tavily/github/context7 model providers
+# were consolidated into one canonical-routing module.
+from . import mcp_model_providers
 from . import playwright_provider
-from . import context7_provider
-from . import tavily_provider
 
 from . import spline_provider
 from . import gosom_provider

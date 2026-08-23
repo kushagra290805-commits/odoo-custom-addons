@@ -20,6 +20,9 @@ class ExecutionContext:
     # Resolved configuration (merged defaults + user overrides + secrets)
     configuration: Dict[str, Any] = field(default_factory=dict)
     
+    # Request-scoped execution context (e.g. ephemeral session info)
+    request_context: Dict[str, Any] = field(default_factory=dict)
+    
     # Active session credentials (if any)
     credentials: Optional[Dict[str, Any]] = None
     

@@ -77,3 +77,13 @@ class ConnectorPersistenceService(ConnectorPersistencePort):
 
     def delete_connector(self, connector_id: str) -> bool:
         return self._adapter.delete_connector_record(connector_id)
+
+    def update_connector(self, connector_id: str, vals: dict) -> bool:
+        # We can map 'state' to 'lifecycle_state' if passed as such, to match domain model
+        data = {}
+        for k, v in vals.items():
+            if k == 'state':
+                data['lifecycle_state'] = v
+            else:
+                data[k] = v
+        return self._adapter.write_connector_record(connector_id, data, is_full_write=False)

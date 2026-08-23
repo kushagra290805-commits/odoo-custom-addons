@@ -61,10 +61,12 @@ class McpSourceAdapter(BaseProviderAdapter):
         super().__init__(None, config)
         self.connector_id = connector_id
         self.env = env
-        # Import lazily to avoid circular imports at module-load time
+        # Phase 44.2 closure (C-26 / P11): execution goes through the
+        # canonical router (build_canonical_router in _execute), which wires
+        # ConnectorExecutionTarget itself. Availability of the platform is
+        # checked via the same accessor the router uses.
         from odoo.addons.nexora_studio.services.connector.integration.bootstrap import get_connector_runtime
-        self._runtime = get_connector_runtime()
-        if not self._runtime:
+        if not get_connector_runtime():
             raise RuntimeError("ConnectorRuntime is not available.")
         self._capability_map: Optional[Dict[str, str]] = None
         self._default_payload: Optional[Dict[str, Any]] = None
@@ -132,11 +134,20 @@ class McpSourceAdapter(BaseProviderAdapter):
 
     def _execute(self, semantic_intent: str, params: Dict[str, Any]) -> Any:
         """
-        Resolve intent → MCP tool name → validate against discovered tools → dispatch.
+        Resolve intent → MCP tool name → validate against discovered tools
+        → execute through the canonical router chain.
+
+        Phase 44.2 closure (C-26 / P11): this adapter previously built its own
+        ConnectorExecutionRequest and called ConnectorRuntime.dispatch()
+        directly — a parallel entry point bypassing policy/security. Execution
+        now traverses the same chain as every other caller:
+
+            UniversalCapabilityRouter → ConnectorExecutionTarget
+            → ConnectorRuntime → ConnectorDispatcher → McpConnector …
+
+        using the "{connector_id}.{tool_name}" shorthand of ADR-0069.
         """
-        from odoo.addons.nexora_studio.services.connector.domain.models import (
-            ConnectorExecutionRequest, ConnectorRuntimeContext
-        )
+        connector = self.env['nexora.connector'].browse(self.connector_id)
 
         tool_name = self._resolve_tool_name(semantic_intent)
 
@@ -148,12 +159,6 @@ class McpSourceAdapter(BaseProviderAdapter):
                 f"is not in discovered capabilities for connector {self.connector_id}. "
                 f"Available: {available}"
             )
-
-        connector = self.env['nexora.connector'].browse(self.connector_id)
-        ctx = ConnectorRuntimeContext(
-            connector_id=connector.connector_id,
-            session_id='csf'
-        )
 
         # Merge source-bound configuration payload with runtime params.
         # Precedence: Source defaults override runtime parameters to preserve source isolation.
@@ -169,21 +174,25 @@ class McpSourceAdapter(BaseProviderAdapter):
         if self._default_payload:
             final_payload.update(self._default_payload)
 
-        request = ConnectorExecutionRequest(
-            capability_namespace="tools.call",
-            context=ctx,
-            payload={
-                "name": tool_name,
-                "arguments": final_payload
-            },
+        from odoo.addons.nexora_studio.services.connector.integration.bootstrap import (
+            build_canonical_router,
         )
 
-        result = self._runtime.dispatch(request)
+        router = build_canonical_router(self.env)
+        result = router.execute(
+            f"{connector.connector_id}.{tool_name}",
+            {"inputs": final_payload},
+            context={
+                'connector_id': connector.connector_id,
+                'session_id': 'csf',
+            },
+        )
         if not result.success:
             raise RuntimeError(
-                f"ConnectorRuntime dispatch failed for tool '{tool_name}': {result.error}"
+                f"Connector execution failed for tool '{tool_name}': "
+                f"{' | '.join(result.logs) if result.logs else 'unknown error'}"
             )
-        return result.data
+        return result.result
 
     # ------------------------------------------------------------------
     # Normalization (§6 Decision)

@@ -121,7 +121,7 @@ class RenderingProviderRegistry:
             supported_features=["semantic_html5", "vanilla_css", "zero_js_bundle"],
         )
 
-        # 6. React Three Fiber (Future Target)
+        # 6. React Three Fiber (Phase 37.1)
         cls._metadata_stubs["react_three_fiber"] = ProviderMetadata(
             provider_id="react_three_fiber",
             display_name="React Three Fiber (3D WebGL Canvas)",
@@ -129,8 +129,20 @@ class RenderingProviderRegistry:
                 layouts=False, routing=False, forms=False, animations=True,
                 design_tokens=True, accessibility=False, static_export=True, ssr=False
             ),
-            versioning=ProviderVersioning(provider_version="0.1.0-alpha", api_version="1.0.0", manifest_version="1.0.0"),
+            versioning=ProviderVersioning(provider_version="1.0.0", api_version="1.0.0", manifest_version="1.0.0"),
             supported_features=["webgl_canvas", "three_js_scene", "shader_materials"],
+        )
+
+        # 7. Spline (Phase 37.2)
+        cls._metadata_stubs["spline"] = ProviderMetadata(
+            provider_id="spline",
+            display_name="Spline 3D (Embedded Scene Renderer)",
+            capabilities=ProviderCapabilityModel(
+                layouts=False, routing=False, forms=False, animations=True,
+                design_tokens=True, accessibility=False, static_export=True, ssr=False
+            ),
+            versioning=ProviderVersioning(provider_version="1.0.0", api_version="1.0.0", manifest_version="1.0.0"),
+            supported_features=["spline_scene", "embedded_3d", "interactive_scene", "react_integration"],
         )
 
     @classmethod
@@ -165,6 +177,16 @@ class RenderingProviderRegistry:
         if provider_id == "react" and "react" not in cls._providers:
             from .react_provider import ReactRenderingProvider
             cls._providers["react"] = ReactRenderingProvider
+            
+        # Ensure React Three Fiber is registered if requested
+        if provider_id == "react_three_fiber" and "react_three_fiber" not in cls._providers:
+            from .react_three_fiber_provider import ReactThreeFiberProvider
+            cls._providers["react_three_fiber"] = ReactThreeFiberProvider
+
+        # Ensure Spline is registered if requested
+        if provider_id == "spline" and "spline" not in cls._providers:
+            from .spline_provider import SplineRenderingProvider
+            cls._providers["spline"] = SplineRenderingProvider
 
         if provider_id in cls._providers:
             return cls._providers[provider_id](**kwargs)

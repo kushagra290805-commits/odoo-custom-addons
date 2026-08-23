@@ -33,3 +33,7 @@ class ConnectorPersistencePort(ABC):
     @abstractmethod
     def delete_connector(self, connector_id: str) -> bool:
         """Deletes a connector and all its state."""
+
+    @abstractmethod
+    def update_connector(self, connector_id: str, vals: dict) -> bool:
+        """Updates specific fields for a connector efficiently."""

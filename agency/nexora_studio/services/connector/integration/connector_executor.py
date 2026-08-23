@@ -22,30 +22,15 @@ from typing import Any, Optional
 _logger = get_logger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Import shims — allow module to load even without full Odoo environment
-# ---------------------------------------------------------------------------
-
-try:
-    from odoo.addons.nexora_studio.services.capabilities.executors.base import ExecutionTarget
-    from odoo.addons.nexora_studio.services.capabilities.models import CapabilityResult
-except ImportError:
-    # Fallback for standalone module loading / testing
-    class ExecutionTarget:  # type: ignore
-        def execute(self, payload: dict) -> Any:
-            raise NotImplementedError
-
-    class CapabilityResult:  # type: ignore
-        def __init__(self, success: bool, result: Any = None, logs: list = None):
-            self.success = success
-            self.result = result
-            self.logs = logs or []
+from odoo.addons.nexora_studio.services.capabilities.executors.base import ExecutionTarget
+from odoo.addons.nexora_studio.services.capabilities.models import CapabilityResult
 
 
 from ..domain.models import (
     ConnectorExecutionRequest,
     ConnectorExecutionStatus,
     ConnectorRuntimeContext,
+    is_reserved_protocol_namespace,
 )
 
 
@@ -119,17 +104,39 @@ class ConnectorExecutionTarget(ExecutionTarget):
         correlation_id = payload.get("correlation_id", str(uuid.uuid4()))
         timeout = float(payload.get("timeout", 60.0))
 
+        connector_id = context_data.get("connector_id", "")
+        # Phase 44.2 (W3 / ADR-0068): canonical namespace contract.
+        # Reserved protocol namespaces (tools.list, tools.call, resources.list,
+        # resources.read, prompts.list, prompts.get) pass through untouched.
+        # Only non-reserved dotted namespaces are the dynamic tool shorthand
+        # "{connector_id}.{tool_name}".
+        if is_reserved_protocol_namespace(namespace):
+            inputs = inputs if isinstance(inputs, dict) else {}
+        elif '.' in namespace:
+            # Dynamic MCP Capability format: {connector_id}.{tool_name}
+            parts = namespace.split('.', 1)
+            connector_id = parts[0]
+            tool_name = parts[1]
+            namespace = "tools.call"
+            inputs = {
+                "name": tool_name,
+                "arguments": inputs if isinstance(inputs, dict) else {}
+            }
+        else:
+            inputs = inputs if isinstance(inputs, dict) else {}
+
         context = ConnectorRuntimeContext(
-            connector_id=context_data.get("connector_id", ""),  # Fixed: read from payload context
+            connector_id=connector_id,
             session_id=correlation_id,
             correlation_id=correlation_id,
             configuration_snapshot=context_data,
+            request_context=payload.get("request_context", {}),
             timeout_seconds=timeout,
         )
 
         return ConnectorExecutionRequest(
             capability_namespace=namespace,
-            payload=inputs if isinstance(inputs, dict) else {},
+            payload=inputs,
             context=context,
             timeout_seconds=timeout,
         )

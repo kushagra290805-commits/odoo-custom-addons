@@ -103,15 +103,25 @@ class McpConnectionTester:
         )
 
         ephemeral_runtime = None
+        runtime_to_use = None
         try:
-            # 1. Create ephemeral runtime (isolated — not the global singleton)
-            ephemeral_runtime = ConnectorRuntime()
-            ephemeral_runtime.startup()
-            # 2. Build onboarding service for ephemeral runtime
-            onboarding = self._factory(ephemeral_runtime, ephemeral_runtime.registration_pipeline, self._env)
-
-            # 3. Register connector through the full pipeline
-            onboarding.register_connector(connector_record)
+            from odoo.addons.nexora_studio.services.connector.integration.bootstrap import get_connector_runtime
+            global_runtime = get_connector_runtime()
+            
+            if global_runtime and connector_record.state in ['running', 'healthy', 'degraded']:
+                _logger.info("McpConnectionTester: using global runtime for active connector.")
+                runtime_to_use = global_runtime
+            else:
+                _logger.info("McpConnectionTester: creating ephemeral runtime for test.")
+                # 1. Create ephemeral runtime (isolated — not the global singleton)
+                ephemeral_runtime = ConnectorRuntime()
+                ephemeral_runtime.startup()
+                # 2. Build onboarding service for ephemeral runtime
+                onboarding = self._factory(ephemeral_runtime, ephemeral_runtime.registration_pipeline, self._env)
+    
+                # 3. Register connector through the full pipeline
+                onboarding.register_connector(connector_record)
+                runtime_to_use = ephemeral_runtime
 
             # 4. Dispatch tests
             tool_count = 0
@@ -127,8 +137,12 @@ class McpConnectionTester:
                 context=ctx,
                 timeout_seconds=30.0,
             )
-            tools_result = ephemeral_runtime.dispatch(tools_req)
-            _logger.info(f"TESTER TOOLS RAW: success={tools_result.success}, data={tools_result.data}, error={tools_result.error}")
+            tools_result = runtime_to_use.dispatch(tools_req)
+            # Phase 44.2 (W1): never log raw MCP payloads (may transit tokens/PII).
+            _logger.info(
+                "McpConnectionTester: tools.list success=%s error=%s",
+                tools_result.success, tools_result.error,
+            )
             if tools_result.success:
                 tools_data = tools_result.data or {}
                 tool_count = len(tools_data.get('tools', []))
@@ -139,7 +153,7 @@ class McpConnectionTester:
                 context=ctx,
                 timeout_seconds=30.0,
             )
-            resources_result = ephemeral_runtime.dispatch(resources_req)
+            resources_result = runtime_to_use.dispatch(resources_req)
             if resources_result.success:
                 resources_data = resources_result.data or {}
                 resource_count = len(resources_data.get('resources', []))
@@ -150,7 +164,7 @@ class McpConnectionTester:
                 context=ctx,
                 timeout_seconds=30.0,
             )
-            prompts_result = ephemeral_runtime.dispatch(prompts_req)
+            prompts_result = runtime_to_use.dispatch(prompts_req)
             if prompts_result.success:
                 prompts_data = prompts_result.data or {}
                 prompt_count = len(prompts_data.get('prompts', []))
@@ -187,7 +201,9 @@ class McpConnectionTester:
             if isinstance(e, ConnectorError):
                 user_msg = f'Connection failed: {type(e).__name__} - {e.user_safe_message}. Check server configuration.'
             else:
-                user_msg = f'Connection failed: {type(e).__name__} - {str(e)}. Check server configuration.\n{full_tb}'
+                # Phase 44.2 (W1): never persist tracebacks into test results;
+                # full_tb is already in the server log above.
+                user_msg = f'Connection failed: {type(e).__name__}. Check server configuration and logs for details.'
             return ConnectionTestResult(
                 success=False,
                 latency_ms=round(latency_ms, 2),

@@ -22,12 +22,16 @@ from typing import Dict, List, Optional
 
 from ..domain.models import (
     Connector,
+    ConnectorCapabilityImplementation,
+    ConnectorEvent,
     ConnectorLifecycleState,
+    ConnectorHealthStatus,
+    ConnectorHealth,
     ConnectorExecutionRequest,
     ConnectorExecutionResult,
 )
 from ..events.bus import ConnectorEventBus, EventSubscriber
-from ..factory import ConnectorFactory, ProviderFactory, TransportFactory
+from ..factory import ConnectorFactory
 from ..lifecycle.lifecycle_manager import ConnectorLifecycleManager
 from ..lifecycle.transitions import ConnectorLifecycleStateMachine
 from ..registry.capability_index import ConnectorCapabilityIndex
@@ -75,6 +79,7 @@ class ConnectorRuntime(EventSubscriber):
         """
         self._persistence = persistence_port
         self.telemetry = telemetry_port or InMemoryTelemetryRecorder()
+        self._persistence = persistence_port
         self._initialized = False
 
         # Recovery state tracking
@@ -82,6 +87,7 @@ class ConnectorRuntime(EventSubscriber):
         self._recovery_locks = {}
         self._recovery_state = {}
         self._recovery_timers = {}
+        self._recovery_attempts = {}
         self._is_shutting_down = False
 
         # Event Bus
@@ -89,12 +95,12 @@ class ConnectorRuntime(EventSubscriber):
         self.event_bus.subscribe(self)
 
         # Factories
-        self.transport_factory = TransportFactory()
-        self.provider_factory = ProviderFactory()
-        self.connector_factory = ConnectorFactory(
-            transport_factory=self.transport_factory,
-            provider_factory=self.provider_factory,
-        )
+        # Phase 44.2 (W10/W12 / ADR-0068): TransportFactory and ProviderFactory
+        # are dead — zero registration call sites, and ConnectorFactory never
+        # invokes them (injection is commented out). They are no longer
+        # instantiated here. ConnectorFactory remains the single live
+        # construction path.
+        self.connector_factory = ConnectorFactory()
 
         # Sub-components
         self.registry = ConnectorRegistry(persistence_port=persistence_port)
@@ -106,6 +112,7 @@ class ConnectorRuntime(EventSubscriber):
         self.health_monitor = ConnectorHealthMonitor(
             event_bus=self.event_bus,
         )
+        self.lifecycle_manager.register_transition_hook(self._on_lifecycle_transition)
         self.dependency_resolver = ConnectorDependencyResolver()
 
         self.registration_pipeline = ConnectorRegistrationPipeline(
@@ -182,13 +189,45 @@ class ConnectorRuntime(EventSubscriber):
         self.dispatcher.shutdown_all()
 
         self._initialized = False
-        _logger.info("ConnectorRuntime: shutdown complete.")    # ------------------------------------------------------------------
+        _logger.info("ConnectorRuntime: shutdown complete.")
+
+    def _on_lifecycle_transition(
+        self,
+        connector: Connector,
+        from_state: ConnectorLifecycleState,
+        to_state: ConnectorLifecycleState,
+    ) -> None:
+        """Hook called when a connector transitions states."""
+        try:
+            _logger.debug(
+                "ConnectorRuntime: lifecycle transition %s: %s -> %s",
+                connector.connector_id, from_state.value, to_state.value,
+            )
+
+            # Clean up dispatcher session if no longer running
+            if to_state not in (ConnectorLifecycleState.RUNNING, ConnectorLifecycleState.HEALTHY):
+                self.dispatcher.shutdown_connector(connector.connector_id)
+
+            # Ensure index is rebuilt for any state change
+            self._rebuild_capability_index()
+
+            # Persist the new state and health to the database
+            if self._persistence and hasattr(self._persistence, 'update_connector'):
+                health_status = 'failed' if to_state.value == 'failed' else getattr(connector.health, 'status', ConnectorHealthStatus.UNKNOWN).value if connector.health else 'unknown'
+                self._persistence.update_connector(connector.connector_id, {
+                    'lifecycle_state': to_state.value,
+                    'health_status': health_status
+                })
+        except Exception as e:
+            _logger.exception("ConnectorRuntime: lifecycle transition hook failed for %s: %s", connector.connector_id, e)
+
+    # ------------------------------------------------------------------
     # Capability Lookup
     # ------------------------------------------------------------------
 
-    def resolve_capability(self, namespace: str) -> Optional[ConnectorCapability]:
+    def resolve_capability(self, namespace: str) -> Optional[ConnectorCapabilityImplementation]:
         """
-        Resolve a capability namespace to its ConnectorCapability definition.
+        Resolve a capability namespace to its connector capability implementation.
         Returns None if no RUNNING connector provides this namespace.
         """
         connector = self.registry.find_for_capability(namespace)
@@ -294,12 +333,7 @@ class ConnectorRuntime(EventSubscriber):
             return True
         return False
 
-    def rebuild_capability_index(self) -> None:
-        """Rebuilds the capability index from the current registry state."""
-        self.capability_index.clear()
-        for connector in self.registry.get_all():
-            for cap in connector.manifest.capabilities:
-                self.capability_index.add(cap, connector.connector_id)
+
 
 
     def transition_connector(
@@ -363,10 +397,19 @@ class ConnectorRuntime(EventSubscriber):
                 _logger.debug("ConnectorRuntime: Recovery already in progress for '%s'.", connector_id)
                 return
 
-            # Reset recovery attempt count if this is a fresh failure
+            attempts = self._recovery_attempts.get(connector_id, 0)
+            if attempts >= 3:
+                _logger.error("ConnectorRuntime: Connector '%s' reached max recovery attempts (3). Transitioning to FAILED.", connector_id)
+                connector = self.registry.get(connector_id)
+                if connector:
+                    self.lifecycle_manager.transition(connector, ConnectorLifecycleState.FAILED, reason="max_recovery_attempts_reached")
+                return
+
+            # Reset recovery attempt count if this is a fresh failure (handled in success)
             if connector_id not in self._recovery_timers:
+                self._recovery_attempts[connector_id] = attempts + 1
                 self._recovery_state[connector_id] = "IN_PROGRESS"
-                _logger.info("ConnectorRuntime: Scheduling recovery for '%s' (Reason: %s).", connector_id, failure_class.value)
+                _logger.info("ConnectorRuntime: Scheduling recovery for '%s' (Attempt %d/3) (Reason: %s).", connector_id, attempts + 1, failure_class.value)
 
                 # Debounce/Delay the recovery attempt (e.g. 2 seconds)
                 timer = threading.Timer(2.0, self._attempt_recovery, args=[connector_id])
@@ -405,9 +448,11 @@ class ConnectorRuntime(EventSubscriber):
                 for cap in connector.manifest.capabilities:
                     self.capability_index.add(cap, connector_id)
 
-                # Transition back to RUNNING
-                self.lifecycle_manager.transition(connector, ConnectorLifecycleState.RUNNING, reason="recovery_success")
                 self.record_health_success(connector_id)
+                self._recovery_attempts[connector_id] = 0 # Reset on success
+                
+                # Transition back to RUNNING (this triggers _on_lifecycle_transition which persists state + health)
+                self.lifecycle_manager.transition(connector, ConnectorLifecycleState.RUNNING, reason="recovery_success")
             else:
                 _logger.warning("ConnectorRuntime: Recovery failed for '%s': %s", connector_id, result.error)
                 self.record_health_failure(connector_id, error=result.error)
@@ -530,9 +575,23 @@ class ConnectorRuntime(EventSubscriber):
             _logger.debug("ConnectorRuntime: 'local_cli' connector type not available: %s", e)
 
     def _rebuild_capability_index(self) -> None:
-        """Rebuild the capability index from the current registry state."""
+        """Rebuild the capability index from the current registry state.
+
+        Phase 44.2 (W4 / G-04): index every connector in an active lifecycle
+        state, not only RUNNING ones. After a restart, connectors are loaded
+        from persistence in their stored state; excluding non-RUNNING states
+        left the index empty and made capabilities unroutable until a manual
+        transition occurred.
+        """
+        active_states = {
+            ConnectorLifecycleState.RUNNING,
+            ConnectorLifecycleState.HEALTHY,
+            ConnectorLifecycleState.PAUSED,
+        }
         self.capability_index.clear()
-        for connector in self.registry.get_running():
+        for connector in self.registry.get_all():
+            if connector.lifecycle_state not in active_states:
+                continue
             for cap_namespace in connector.manifest.capabilities:
                 self.capability_index.add(cap_namespace, connector.connector_id)
 
@@ -561,12 +620,36 @@ class ConnectorRuntime(EventSubscriber):
             self.handle_transport_failure(event.connector_id, failure_class, error_detail)
 
         elif event.event_type == "health.recovered":
-            pass # Health recoveries are handled implicitly by successful initialize_and_verify
+            # Phase 44.2 (W5): persist the recovered health status. The
+            # lifecycle transition (if any) is handled by the monitor's
+            # suggested_state flow; here we only persist truthful health.
+            self._persist_health_status(event.connector_id)
+
+        elif event.event_type == "health.degraded":
+            # Phase 44.2 (W5 / G-20): 'degraded' is a health_status value, not
+            # a lifecycle state. Persist it without a lifecycle transition.
+            self._persist_health_status(event.connector_id)
 
         _logger.debug(
             "ConnectorRuntime event handled: type=%s connector=%s severity=%s",
             event.event_type, event.connector_id, event.severity.value,
         )
+
+    def _persist_health_status(self, connector_id: str) -> None:
+        """Persist the connector's current in-memory health status (W5)."""
+        connector = self.registry.get(connector_id)
+        if not connector or not self._persistence:
+            return
+        if not hasattr(self._persistence, 'update_connector'):
+            return
+        health_status = (
+            connector.health.status.value
+            if connector.health is not None
+            else ConnectorHealthStatus.UNKNOWN.value
+        )
+        self._persistence.update_connector(connector_id, {
+            'health_status': health_status,
+        })
 
     def _on_health_change(
         self,
@@ -585,6 +668,19 @@ class ConnectorRuntime(EventSubscriber):
         result = self.lifecycle_manager.transition(connector, suggested_state, reason="health_monitor")
         if result.success:
             self._rebuild_capability_index()
+            if self._persistence and hasattr(self._persistence, 'update_connector'):
+                # Phase 44.2 (W5 / G-20): persist with the canonical
+                # 'lifecycle_state' key and derive health_status from the
+                # connector's actual health aggregate (truthful, not hardcoded).
+                health_status = (
+                    connector.health.status.value
+                    if connector.health is not None
+                    else ('failed' if suggested_state == ConnectorLifecycleState.FAILED else ConnectorHealthStatus.UNKNOWN.value)
+                )
+                self._persistence.update_connector(connector_id, {
+                    'lifecycle_state': suggested_state.value,
+                    'health_status': health_status
+                })
 
     # ------------------------------------------------------------------
     # Inspection

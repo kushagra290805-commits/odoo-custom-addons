@@ -60,10 +60,16 @@ class NexoraMcpServerConfig(models.Model):
     # ------------------------------------------------------------------
     # Generic Authentication Configuration (primarily for SSE)
     # ------------------------------------------------------------------
+    # ADR-0071 (C-15): authentication_location is the single declared axis of
+    # credential delivery. 'env' = stdio only — the credential is delivered as
+    # an environment variable of the child MCP server process, declared in
+    # env_vars_json via the reserved placeholder
+    # __INJECT_VIA_NEXORA_MCP_CREDENTIAL__.
     authentication_location = fields.Selection([
         ('none', 'None'),
         ('header', 'HTTP Header'),
         ('query', 'Query Parameter'),
+        ('env', 'Process Environment (stdio)'),
     ], string='Authentication Location', default='none')
 
     authentication_name = fields.Char(
@@ -83,6 +89,31 @@ class NexoraMcpServerConfig(models.Model):
         string='Credential Key Mapping',
         help='Key of the nexora.mcp_credential used for this authentication (e.g., "PENPOT_API_KEY").'
     )
+    
+    allowed_request_context_fields_json = fields.Text(
+        string='Allowed Request Context Fields (JSON)',
+        default='[]',
+        help='JSON array of strings defining the allowlist of request_context keys '
+             'that are permitted to be sent to the MCP server. (e.g. ["userToken"])'
+    )
+
+    # ------------------------------------------------------------------
+    # Session Binding Configuration
+    # ------------------------------------------------------------------
+    session_binding = fields.Selection([
+        ('none', 'None'),
+        ('request_context', 'Request Context'),
+    ], string='Session Binding Policy', default='none')
+
+    session_binding_field = fields.Char(
+        string='Session Binding Field',
+        help='The request context field providing session identity (e.g., "userToken").'
+    )
+
+    session_binding_location = fields.Selection([
+        ('query', 'Query Parameter'),
+        ('header', 'HTTP Header'),
+    ], string='Session Binding Location', default='query')
 
     # ------------------------------------------------------------------
     # Timeout & Startup Policy
@@ -180,12 +211,59 @@ class NexoraMcpServerConfig(models.Model):
                 except json.JSONDecodeError as e:
                     raise ValidationError(f'Environment Variables JSON is invalid: {e}')
 
+    @api.constrains('allowed_request_context_fields_json')
+    def _check_allowed_request_context_fields_json(self):
+        for rec in self:
+            if rec.allowed_request_context_fields_json:
+                try:
+                    fields_list = json.loads(rec.allowed_request_context_fields_json)
+                    if not isinstance(fields_list, list):
+                        raise ValidationError('Allowed request context fields must be a JSON array (list of strings).')
+                    for field in fields_list:
+                        if not isinstance(field, str):
+                            raise ValidationError(
+                                f'All allowed request context fields must be strings. Got: {type(field).__name__}'
+                            )
+                except json.JSONDecodeError as e:
+                    raise ValidationError(f'Allowed Request Context Fields JSON is invalid: {e}')
+
+    @api.constrains('session_binding', 'session_binding_field', 'allowed_request_context_fields_json')
+    def _check_session_binding(self):
+        for rec in self:
+            if rec.session_binding == 'request_context':
+                if not rec.session_binding_field:
+                    raise ValidationError('Session Binding Field is required when Session Binding Policy is "Request Context".')
+                allowed_fields = rec.get_allowed_request_context_fields_list()
+                if rec.session_binding_field not in allowed_fields:
+                    raise ValidationError(
+                        f"Session Binding Field '{rec.session_binding_field}' must be explicitly listed in Allowed Request Context Fields."
+                    )
+
     @api.constrains('command')
     def _check_command(self):
         for rec in self:
             if rec.command and '..' in rec.command:
                 raise ValidationError(
                     'Path traversal detected in command. Use absolute paths or binary names only.'
+                )
+
+    @api.constrains('authentication_location', 'transport_type')
+    def _check_auth_transport_coherence(self):
+        """ADR-0071 (C-15): delivery modes are transport-bound.
+
+        'env' is meaningful only for stdio (credential becomes an environment
+        variable of the child process); 'header'/'query' are meaningful only
+        for sse (HTTP surfaces). Nonsensical combinations are rejected at write
+        time rather than at connect time.
+        """
+        for rec in self:
+            if rec.authentication_location == 'env' and rec.transport_type != 'stdio':
+                raise ValidationError(
+                    "Authentication location 'env' is only valid for stdio transports."
+                )
+            if rec.authentication_location in ('header', 'query') and rec.transport_type != 'sse':
+                raise ValidationError(
+                    "Authentication locations 'header'/'query' are only valid for sse transports."
                 )
 
     @api.constrains('timeout_seconds')
@@ -209,3 +287,11 @@ class NexoraMcpServerConfig(models.Model):
             return json.loads(self.env_vars_json or '{}')
         except (json.JSONDecodeError, TypeError):
             return {}
+
+    def get_allowed_request_context_fields_list(self):
+        """Returns parsed allowed request context fields as a Python list. Never raises — returns [] on error."""
+        self.ensure_one()
+        try:
+            return json.loads(self.allowed_request_context_fields_json or '[]')
+        except (json.JSONDecodeError, TypeError):
+            return []

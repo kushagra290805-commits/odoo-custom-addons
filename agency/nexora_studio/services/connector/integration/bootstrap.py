@@ -108,6 +108,7 @@ class ConnectorPlatformBootstrap:
                         adapter = OdooConnectorPersistenceAdapter(env)
                         service = ConnectorPersistenceService(adapter)
                         self._connector_runtime.registry._persistence = service
+                        self._connector_runtime._persistence = service
 
                         count = self._connector_runtime.registry.sync_from_odoo()
                         _logger.info("ConnectorPlatformBootstrap: deferred sync loaded %d connectors.", count)
@@ -234,8 +235,14 @@ class ConnectorPlatformBootstrap:
                     self._connector_runtime.registry.unregister(connector_id)
                     onboarding.register_connector(record)
 
-                    # Phase 35.2: Clear any stale error messages upon successful recovery
-                    record.write({'error_message': False})
+                    # Phase 44.2 (W5 / G-05): truthful health. Successful
+                    # registration/handshake clears stale errors, but health is
+                    # 'unknown' until a real health probe succeeds. Never
+                    # force-write 'healthy'.
+                    record.write({
+                        'error_message': False,
+                        'health_status': 'unknown'
+                    })
 
                     env.cr.commit()
                     _logger.info("ConnectorPlatformBootstrap: Successfully verified and restored '%s' to %s.", connector_id, connector.lifecycle_state.value)
@@ -249,35 +256,19 @@ class ConnectorPlatformBootstrap:
                         record.write({
                             'state': 'failed',
                             'health_status': 'failed',
-                            'error_message': f'Startup reconciliation failed: {str(e)}'
+                            'error_message': f'Startup reconciliation failed: {type(e).__name__}'
                         })
                         env.cr.commit()
                     except Exception as inner_e:
                         _logger.error("Failed to persist FAILED state for '%s': %s", connector_id, inner_e)
                         env.cr.rollback()
-        try:
-            from odoo.addons.nexora_studio.services.capabilities.models import ExecutionTargetType
-            # Check if CONNECTOR target type is defined
-            if not hasattr(ExecutionTargetType, 'CONNECTOR'):
-                _logger.warning(
-                    "ConnectorPlatformBootstrap: ExecutionTargetType.CONNECTOR not yet defined. "
-                    "UCEL registration deferred. Add CONNECTOR to ExecutionTargetType in Phase 27."
-                )
-                return
-
-            # Registration is done by injecting into the already-constructed UCEL router
-            # The actual UCEL router instance is owned by GenerationRuntime,
-            # which is instantiated per-generation. The ConnectorExecutionTarget is
-            # made available globally so GenerationRuntime.__init__ can pick it up.
-            # This wiring is completed in ConnectorRuntimeBridge.
-            _logger.info(
-                "ConnectorPlatformBootstrap: ConnectorExecutionTarget ready for UCEL registration."
-            )
-        except ImportError:
-            _logger.warning(
-                "ConnectorPlatformBootstrap: could not import UCEL models. "
-                "UCEL registration skipped."
-            )
+        # Phase 44.2 (W10): removed dead hasattr(ExecutionTargetType, 'CONNECTOR')
+        # guard — CONNECTOR is always defined. ConnectorExecutionTarget is made
+        # available globally via get_connector_runtime(); GenerationRuntime
+        # registers it in its executor dict.
+        _logger.info(
+            "ConnectorPlatformBootstrap: ConnectorExecutionTarget ready for UCEL registration."
+        )
 
     def _wire_generation_runtime_bridge(self, env: Optional[Any]) -> None:
         """Wire the GenerationRuntime.configuration stub via ConnectorRuntimeBridge."""
@@ -302,3 +293,49 @@ def get_connector_runtime() -> Optional[Any]:
     """Returns the ConnectorRuntime from the bootstrap singleton, or None."""
     bootstrap = ConnectorPlatformBootstrap.get_instance()
     return bootstrap.connector_runtime
+
+
+def build_canonical_router(env: Optional[Any] = None) -> Any:
+    """
+    Phase 44.2 closure (C-26 / P11): construct the canonical
+    UniversalCapabilityRouter wired to the live connector platform.
+
+    This is a construction helper for callers that must reach an MCP server —
+    it wires the SAME components GenerationRuntime wires (resolver, policy,
+    security, middleware, scheduler and the CONNECTOR executor) so that every
+    execution traverses
+        UniversalCapabilityRouter → ConnectorExecutionTarget → ConnectorRuntime
+    instead of bypassing the router with a direct dispatch. It introduces no
+    new executor type, registry or orchestration layer; GenerationRuntime
+    keeps its own (identical) wiring.
+    """
+    from odoo.addons.nexora_studio.services.capabilities.repository import CapabilityRepository
+    from odoo.addons.nexora_studio.services.capabilities.resolver import CapabilityResolver
+    from odoo.addons.nexora_studio.services.capabilities.policy import CapabilityPolicyEngine
+    from odoo.addons.nexora_studio.services.capabilities.security import SecurityLayer
+    from odoo.addons.nexora_studio.services.capabilities.middleware import MiddlewarePipeline
+    from odoo.addons.nexora_studio.services.capabilities.scheduler import ExecutionScheduler
+    from odoo.addons.nexora_studio.services.capabilities.strategy import ExecutionStrategy
+    from odoo.addons.nexora_studio.services.capabilities.executors.local import LocalToolExecutor
+    from odoo.addons.nexora_studio.services.capabilities.models import ExecutionTargetType
+    from odoo.addons.nexora_studio.services.capabilities.router import UniversalCapabilityRouter
+    from .connector_executor import ConnectorExecutionTarget
+
+    repository = CapabilityRepository(env)
+    executors = {
+        ExecutionTargetType.LOCAL: LocalToolExecutor(
+            env['nexora.tool_registry'] if env else None
+        ),
+        # Phase 44.2 (W2 / ADR-0068): CONNECTOR is always registered; REMOTE
+        # deliberately is not (RemoteToolExecutor returns unconditional
+        # success — audit §17.9).
+        ExecutionTargetType.CONNECTOR: ConnectorExecutionTarget(get_connector_runtime()),
+    }
+    return UniversalCapabilityRouter(
+        CapabilityResolver(repository),
+        CapabilityPolicyEngine(),
+        SecurityLayer(),
+        MiddlewarePipeline(),
+        ExecutionScheduler(ExecutionStrategy()),
+        executors,
+    )

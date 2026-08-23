@@ -3,7 +3,7 @@ Connector Platform: Connector Factory
 ======================================
 Part 3 of Phase 26.2 — Universal Connector Platform Refinement.
 """
-from typing import Dict, Any, Type
+from typing import Dict, Any, Optional, Type
 from ..sdk.base import BaseConnector
 from .transport_factory import TransportFactory
 from .provider_factory import ProviderFactory
@@ -12,12 +12,18 @@ class ConnectorFactory:
     """
     Centralized factory for creating BaseConnector instances.
     Injects dependencies (transport, capabilities, config, auth, health).
+
+    Phase 44.2 (W10/W12 / ADR-0068): the transport/provider sub-factories are
+    dead (never invoked — dependency injection below is commented out, and
+    concrete connectors such as McpConnector construct their own transport and
+    provider directly). The parameters are retained as optional for backward
+    compatibility but are no longer required or instantiated by the runtime.
     """
 
     def __init__(
         self,
-        transport_factory: TransportFactory,
-        provider_factory: ProviderFactory
+        transport_factory: Optional[TransportFactory] = None,
+        provider_factory: Optional[ProviderFactory] = None
     ) -> None:
         self.transport_factory = transport_factory
         self.provider_factory = provider_factory

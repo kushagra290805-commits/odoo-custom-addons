@@ -1,4 +1,12 @@
 # -*- coding: utf-8 -*-
+# LEGACY / NON-CANONICAL (Phase 44.2, W12, ADR-0068):
+# This is a legacy Odoo-model MCP service consumed by the legacy AI provider
+# platform (services/providers/adapters/mcp_bridge_adapter.py). It is NOT part
+# of the canonical connector runtime path
+# (Router -> ConnectorExecutionTarget -> ConnectorRuntime -> ConnectorDispatcher
+#  -> McpConnector -> McpProvider -> McpTransport). Do not wire new MCP work
+# through it. Removal is DEFERRED (removing imports risks legacy provider
+# platform regression; out of Phase 44.2 scope).
 from odoo import models, api, fields, _
 from odoo.exceptions import ValidationError
 import logging

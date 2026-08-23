@@ -2,6 +2,16 @@
 Connector Platform: Provider Factory
 =====================================
 Part 3 of Phase 26.2 — Universal Connector Platform Refinement.
+
+DEPRECATED (Phase 44.2, W10/W12, ADR-0068): this factory is dead — it has zero
+registration call sites and is never invoked by ConnectorFactory (whose
+provider injection is commented out). Concrete connectors (e.g. McpConnector)
+construct their own provider directly. The file is retained for backward
+compatibility only; do not wire new code through it. Removal is deferred to
+Phase 44.3 with dependency proof.
+
+Note: this is the connector-platform ProviderFactory. It is unrelated to the
+legacy AI-provider-platform ProviderFactory in services/providers/base_provider.py.
 """
 from typing import Dict, Type
 from ..sdk.capability import BaseCapabilityProvider
@@ -13,6 +23,8 @@ class ProviderFactory:
     """
     Responsible for instantiating the correct provider implementations 
     for capabilities, configuration, authentication, and health.
+
+    DEPRECATED — see module docstring. Not used by the canonical MCP path.
     """
     
     def __init__(self) -> None:

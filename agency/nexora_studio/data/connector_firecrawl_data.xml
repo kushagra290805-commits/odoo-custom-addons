@@ -24,5 +24,13 @@
             <field name="timeout_seconds">60</field>
             <field name="startup_policy">lazy</field>
         </record>
+
+        <!-- Credential slot only. The secret value is populated via the Odoo UI and never stored in source control. -->
+        <record id="credential_firecrawl_api_key" model="nexora.mcp_credential">
+            <field name="connector_id" ref="connector_firecrawl_mcp"/>
+            <field name="credential_key">FIRECRAWL_API_KEY</field>
+            <field name="credential_type">api_key</field>
+            <field name="description">Firecrawl API key injected as the FIRECRAWL_API_KEY process environment variable.</field>
+        </record>
     </data>
 </odoo>

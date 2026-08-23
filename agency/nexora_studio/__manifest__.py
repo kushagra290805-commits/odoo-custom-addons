@@ -4,7 +4,7 @@
     # Nexora Studio - Enterprise Foundation
     # ---------------------------------------------------------
     'name': 'Nexora Studio',
-    'version': '1.0.0',
+    'version': '1.0.2',
     'category': 'Services',
     'summary': 'Enterprise digital service agency operating system',
     'description': 'Initial enterprise foundation for Nexora Studio (Odoo 19 Community).',
@@ -52,6 +52,12 @@
         'data/provider_actions.xml',
         'data/source_registry_data.xml',
         'data/connector_firecrawl_data.xml',
+        'data/connector_penpot_data.xml',
+        'data/connector_tavily_data.xml',
+        # Phase 44.2 closure (C-10): declarative seeds for the previously
+        # imperative Context7 / GitHub connectors.
+        'data/connector_context7_data.xml',
+        'data/connector_github_data.xml',
         # Phase 26 — Universal Connector Platform
         'data/connector_health_cron.xml',
         'views/connector_views.xml',
@@ -66,7 +72,9 @@
             'nexora_studio/static/src/js/dashboard.js',
         ],
     },
-    'external_dependencies': {},
+    'external_dependencies': {
+        'python': ['mcp', 'anyio', 'httpx']
+    },
     
     # ---------------------------------------------------------
     # Module Installation settings

@@ -8,6 +8,7 @@ class ExecutionTargetType(Enum):
     AGENT = "AGENT"
     WORKFLOW = "WORKFLOW"
     PIPELINE = "PIPELINE"
+    CONNECTOR = "CONNECTOR"
 
 @dataclass(frozen=True)
 class CapabilityManifest:

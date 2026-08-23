@@ -87,8 +87,10 @@ class CapabilityRegistry(models.Model):
         return True
         
     def check_health(self):
+        # Phase 44.2 (W5 / G-05): truthful health. This stub performs no real
+        # probe, so it must not force-write 'healthy'. Health is evidence.
         for record in self:
-            record.health_status = 'healthy'
+            record.health_status = 'unknown'
             
     @property
     def capability_name(self):

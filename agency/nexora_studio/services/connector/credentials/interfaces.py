@@ -155,10 +155,16 @@ class CredentialResolver(ABC):
     def validate(
         self,
         reference: ConnectorCredentialReference,
+        connector_id: str = "",
     ) -> CredentialValidationResult:
         """
         Validate that a credential reference can be resolved without actually resolving it.
         Does NOT make external calls — only checks that the key exists in the store.
+
+        Phase 44.2 (W9 / G-52): implementations MUST scope the existence check
+        to the connector ("{connector_id}:{credential_key}"). Without a
+        connector scope an exact check is impossible, so implementations must
+        fail closed rather than fall back to a cross-connector heuristic.
         """
 
 

@@ -105,7 +105,9 @@ class McpOnboardingService:
                 discovery.discover(connector_record)
 
                 # Reconcile capabilities in memory
-                self._runtime.rebuild_capability_index()
+                # self._runtime.rebuild_capability_index() is intentionally removed here
+                # because the lifecycle transition to RUNNING automatically triggers _rebuild_capability_index()
+                # in ConnectorRuntime, avoiding the dual-rebuild bug and ensuring only healthy capabilities are indexed.
 
         except Exception as e:
             import traceback
@@ -220,13 +222,84 @@ class McpOnboardingService:
         auth_scheme = getattr(mcp_config_record, 'authentication_scheme', 'none')
         credential_key = getattr(mcp_config_record, 'credential_key', '') or ''
 
+        # Phase 44.2 (W9 / G-12): fail closed. Distinguish "no credential
+        # configured" (legitimate — auth_location 'none' or no credential_key)
+        # from "credential configured but unresolvable" (always an error).
+        # Previously an unresolved credential silently yielded '' and the
+        # transport connected unauthenticated, misdiagnosed as a network fault.
         auth_secret = ''
         if auth_location != 'none' and credential_key:
-            auth_secret = resolved_secrets.get(credential_key, '')
+            if credential_key not in resolved_secrets:
+                raise ConnectorConfigurationError(
+                    error_code='CREDENTIAL_UNRESOLVED',
+                    user_safe_message=(
+                        f"Connector '{connector_record.name}' requires credential "
+                        f"'{credential_key}' but it could not be resolved."
+                    ),
+                    technical_message=(
+                        f"auth_location='{auth_location}' with credential_key="
+                        f"'{credential_key}' for connector '{connector_id}', but no "
+                        f"resolvable secret exists. Refusing to connect unauthenticated."
+                    )
+                )
+            auth_secret = resolved_secrets[credential_key]
+
+        session_binding = getattr(mcp_config_record, 'session_binding', 'none')
+        session_binding_field = getattr(mcp_config_record, 'session_binding_field', '') or ''
+        session_binding_location = getattr(mcp_config_record, 'session_binding_location', 'query')
+
+        allowed_request_context_fields = []
+        try:
+            fields_json = getattr(mcp_config_record, 'allowed_request_context_fields_json', '[]')
+            allowed_request_context_fields = json.loads(fields_json) if fields_json else []
+        except Exception as e:
+            # Phase 44.2 (W14): no silent swallow. Malformed allowlist JSON
+            # falls back to an empty allowlist (no request_context fields
+            # cross into MCP meta — safe default) but is made visible.
+            _logger.warning(
+                "Connector '%s': allowed_request_context_fields_json is "
+                "malformed (%s); defaulting to an empty allowlist.",
+                connector_id, e,
+                extra={'connector_id': connector_id}
+            )
+            allowed_request_context_fields = []
 
         if transport == 'stdio':
-            # Preserve backward compatibility: inject all secrets into env
-            env_vars.update(resolved_secrets)
+            # Phase 44.2 (W9 / G-21): declared-only credential injection.
+            # A key in env_vars_json whose value is the injection placeholder
+            # declares "inject the resolved credential for this key here".
+            # When at least one declaration exists, ONLY declared keys are
+            # injected (least privilege). When no declaration is present
+            # (current state of all seeded connectors), fall back to the
+            # legacy wholesale injection so production stdio connectors are
+            # not broken — narrowing takes effect as declarations are added
+            # (audit staging: "declare first, narrow second").
+            _INJECT_PLACEHOLDER = '__INJECT_VIA_NEXORA_MCP_CREDENTIAL__'
+            declared = [k for k, v in env_vars.items() if v == _INJECT_PLACEHOLDER]
+            if declared:
+                for key in declared:
+                    if key in resolved_secrets:
+                        env_vars[key] = resolved_secrets[key]
+                    else:
+                        # Declared but unresolvable: fail closed, never inject ''.
+                        raise ConnectorConfigurationError(
+                            error_code='CREDENTIAL_UNRESOLVED',
+                            user_safe_message=(
+                                f"Connector '{connector_record.name}' declares env "
+                                f"credential '{key}' but it could not be resolved."
+                            ),
+                            technical_message=(
+                                f"stdio env declaration '{key}' for connector "
+                                f"'{connector_id}' has no resolvable secret."
+                            )
+                        )
+            else:
+                # Backward compatibility: no declarations → legacy injection.
+                env_vars.update(resolved_secrets)
+
+        # Phase 44.2 (W8): plumb operator-configured timeout and stdio cwd.
+        timeout_seconds = int(getattr(mcp_config_record, 'timeout_seconds', 60) or 60)
+        working_directory = getattr(mcp_config_record, 'working_directory', '') or None
 
         return McpConfiguration(
             command=mcp_config_record.command,
@@ -237,6 +310,12 @@ class McpOnboardingService:
             auth_name=auth_name,
             auth_scheme=auth_scheme,
             auth_secret=auth_secret,
+            session_binding=session_binding,
+            session_binding_field=session_binding_field,
+            session_binding_location=session_binding_location,
+            allowed_request_context_fields=allowed_request_context_fields,
+            timeout_seconds=timeout_seconds,
+            working_directory=working_directory,
         )
 
     def _build_manifest(self, connector_record) -> ConnectorManifest:
@@ -283,6 +362,12 @@ class McpOnboardingService:
                 'auth_name': mcp_config.auth_name,
                 'auth_scheme': mcp_config.auth_scheme,
                 'auth_secret': mcp_config.auth_secret,
+                'session_binding': mcp_config.session_binding,
+                'session_binding_field': mcp_config.session_binding_field,
+                'session_binding_location': mcp_config.session_binding_location,
+                'allowed_request_context_fields': mcp_config.allowed_request_context_fields,
+                'timeout_seconds': mcp_config.timeout_seconds,
+                'working_directory': mcp_config.working_directory,
             }
         )
 
@@ -345,6 +430,12 @@ class McpOnboardingService:
                             'auth_name': mcp_config.auth_name,
                             'auth_scheme': mcp_config.auth_scheme,
                             'auth_secret': mcp_config.auth_secret,
+                            'session_binding': mcp_config.session_binding,
+                            'session_binding_field': mcp_config.session_binding_field,
+                            'session_binding_location': mcp_config.session_binding_location,
+                            'allowed_request_context_fields': mcp_config.allowed_request_context_fields,
+                            'timeout_seconds': mcp_config.timeout_seconds,
+                            'working_directory': mcp_config.working_directory,
                         }
                     )
                     _logger.info("McpOnboardingService: successfully reconstructed runtime configuration for '%s'", connector.connector_id)

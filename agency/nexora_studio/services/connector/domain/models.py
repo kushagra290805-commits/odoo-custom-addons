@@ -61,6 +61,29 @@ class ConnectorExecutionStatus(str, Enum):
     PARTIAL = "partial"
 
 
+# ---------------------------------------------------------------------------
+# Canonical MCP Namespace Contract (Phase 44.2 / ADR-0068)
+# ---------------------------------------------------------------------------
+# Reserved protocol namespaces are matched verbatim and passed through to the
+# connector provider untouched. Only NON-reserved dotted namespaces may be
+# interpreted as the dynamic tool shorthand "{connector_id}.{tool_name}".
+# No connector-specific exceptions to this contract are permitted.
+
+RESERVED_PROTOCOL_NAMESPACES = frozenset({
+    "tools.list",
+    "tools.call",
+    "resources.list",
+    "resources.read",
+    "prompts.list",
+    "prompts.get",
+})
+
+
+def is_reserved_protocol_namespace(namespace: str) -> bool:
+    """Return True if the namespace is a reserved MCP protocol namespace."""
+    return namespace in RESERVED_PROTOCOL_NAMESPACES
+
+
 class ConnectorFailureClass(str, Enum):
     CONFIGURATION_ERROR = "configuration_error"
     CREDENTIAL_ERROR = "credential_error"
@@ -401,6 +424,7 @@ class ConnectorRuntimeContext:
     correlation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     resolved_credentials: Dict[str, str] = field(default_factory=dict)
     configuration_snapshot: Dict[str, Any] = field(default_factory=dict)
+    request_context: Dict[str, Any] = field(default_factory=dict)
     timeout_seconds: float = 60.0
     metadata: Dict[str, Any] = field(default_factory=dict)
 

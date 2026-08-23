@@ -79,18 +79,30 @@ class OdooCredentialResolver(CredentialResolver):
     def validate(
         self,
         reference: ConnectorCredentialReference,
+        connector_id: str = "",
     ) -> CredentialValidationResult:
         """
         Validate that a credential reference can be resolved without decrypting.
         Returns CredentialValidationResult — does NOT make external calls.
-        """
-        # We need the connector_id to form the composite key — but this interface
-        # doesn't take a context. We use a prefix search to check existence.
-        suffix = f":{reference.credential_key}"
-        all_keys = self._secrets.list_keys()
-        found = any(k.endswith(suffix) for k in all_keys)
 
-        if found:
+        Phase 44.2 (W9 / G-52): exact composite-key match only
+        ("<connector_id>:<credential_key>"). The previous suffix scan matched
+        keys belonging to OTHER connectors (false positives). Without a
+        connector scope an exact check is impossible, so validation fails
+        closed instead of falling back to a heuristic.
+        """
+        if not connector_id:
+            return CredentialValidationResult(
+                valid=False,
+                credential_key=reference.credential_key,
+                error=(
+                    "Credential validation requires a connector scope "
+                    "(connector_id); refusing cross-connector suffix scan."
+                )
+            )
+
+        composite_key = f"{connector_id}:{reference.credential_key}"
+        if self._secrets.has_secret(composite_key):
             return CredentialValidationResult(
                 valid=True,
                 credential_key=reference.credential_key
@@ -99,7 +111,10 @@ class OdooCredentialResolver(CredentialResolver):
             return CredentialValidationResult(
                 valid=False,
                 credential_key=reference.credential_key,
-                error=f"Required credential '{reference.credential_key}' is not set."
+                error=(
+                    f"Required credential '{reference.credential_key}' is not set "
+                    f"for connector '{connector_id}'."
+                )
             )
         return CredentialValidationResult(
             valid=True,

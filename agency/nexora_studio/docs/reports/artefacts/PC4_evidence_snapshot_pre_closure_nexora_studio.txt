@@ -1,0 +1,121 @@
+﻿# PC-4 pre-closure evidence snapshot (Phase 44.1 s11 queries)
+# db=nexora_studio  captured=2026-08-22T13:28:23.8421841+05:30
+# NOTE: read-only; no credential values.
+
+Pager usage is off.
+== Q1 core inventory (11.1) ==
+ connector_id  | transport_type |  state  | health_status | enabled | auth_loc | auth_name | credential_key | session_binding | timeout_seconds 
+---------------+----------------+---------+---------------+---------+----------+-----------+----------------+-----------------+-----------------
+ context7_mcp  | stdio          | running | healthy       | t       | none     |           |                | none            |              60
+ firecrawl_mcp | stdio          | running | healthy       | t       | none     |           |                | none            |              60
+ github_mcp    | stdio          | running | healthy       | t       | none     |           |                | none            |              60
+ penpot_mcp    | sse            | running | healthy       | t       | query    | userToken | PENPOT_API_KEY | none            |              60
+ tavily_mcp    | stdio          | running | healthy       | t       | none     |           |                | none            |              60
+
+== Q2 launch configuration (11.2) ==
+ connector_id  |            command            |                                                          args_json                                                          | env_vars_json |                              working_directory                              | startup_policy 
+---------------+-------------------------------+-----------------------------------------------------------------------------------------------------------------------------+---------------+-----------------------------------------------------------------------------+----------------
+ context7_mcp  | npx.cmd                       | ["-y", "--quiet", "@upstash/context7-mcp"]                                                                                  | {}            |                                                                             | lazy
+ firecrawl_mcp | npx                           | ["-y", "firecrawl-mcp"]                                                                                                     | {}            |                                                                             | lazy
+ github_mcp    | docker                        | ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "-e", "GITHUB_READ_ONLY=1", "ghcr.io/github/github-mcp-server"] | {}            |                                                                             | lazy
+ penpot_mcp    | http://localhost:9001/mcp/sse | []                                                                                                                          | {}            | C:/Users/kusha/AppData/Roaming/npm/node_modules/@penpot/mcp/packages/server | lazy
+ tavily_mcp    | npx.cmd                       | ["-y", "--quiet", "tavily-mcp"]                                                                                             | {}            |                                                                             | lazy
+
+== Q3 manifest and capability index (11.3) ==
+ connector_id  | manifest_len | capability_rows | discovered_tools 
+---------------+--------------+-----------------+------------------
+ context7_mcp  |            2 |               0 |                2
+ firecrawl_mcp |            2 |               0 |               27
+ github_mcp    |           16 |               0 |               29
+ penpot_mcp    |          792 |               0 |                4
+ tavily_mcp    |           64 |               0 |                5
+
+ capability_row_total 
+----------------------
+                    0
+
+ capability_definition_total 
+-----------------------------
+                           0
+
+== Q4 discovered tool totals (11.4) ==
+ connector_id  | tools 
+---------------+-------
+ context7_mcp  |     2
+ firecrawl_mcp |    27
+ github_mcp    |    29
+ penpot_mcp    |     4
+ tavily_mcp    |     5
+
+ discovered_tool_total 
+-----------------------
+                    67
+
+== Q5 credentials (11.5) -- lengths only, never values ==
+ connector_id  |        credential_key        | is_set | ciphertext_len 
+---------------+------------------------------+--------+----------------
+ context7_mcp  | CONTEXT7_API_KEY             | t      |            140
+ firecrawl_mcp | FIRECRAWL_API_KEY            | t      |            140
+ github_mcp    | GITHUB_PERSONAL_ACCESS_TOKEN | t      |            204
+ penpot_mcp    | PENPOT_API_KEY               | t      |            548
+ tavily_mcp    | TAVILY_API_KEY               | t      |            164
+
+== Q6 capability registry enablement ==
+      capability_id      |     provider     |        state        | enabled | supports_local | supports_remote 
+-------------------------+------------------+---------------------+---------+----------------+-----------------
+ mcp.context7.1.0.0      | context7_mcp     | capability.enabled  | t       | t              | f
+ mcp.drei_docs.1.0.0     | drei_docs_mcp    | capability.disabled | f       | t              | f
+ mcp.firecrawl.1.0.0     | firecrawl_mcp    | capability.enabled  | t       | t              | f
+ mcp.github.1.0.0        | github_mcp       | capability.enabled  | t       | t              | f
+ mcp.gosom.1.0.0         | gosom_mcp        | capability.disabled | f       | t              | f
+ mcp.gsap_docs.1.0.0     | gsap_docs_mcp    | capability.enabled  | t       | t              | f
+ mcp.mdn_docs.1.0.0      | mdn_docs_mcp     | capability.enabled  | t       | t              | f
+ mcp.penpot.1.0.0        | penpot_mcp       | capability.enabled  | t       | f              | t
+ mcp.r3f_docs.1.0.0      | r3f_docs_mcp     | capability.disabled | f       | t              | f
+ mcp.spline.1.0.0        | spline_mcp       | capability.disabled | f       | t              | f
+ mcp.tavily.1.0.0        | tavily_mcp       | capability.enabled  | t       | t              | f
+ mcp.threejs_docs.1.0.0  | threejs_docs_mcp | capability.disabled | f       | t              | f
+ mcp.tool.browser.1.0.0  | nexora           | capability.enabled  | t       | t              | t
+ mcp.tool.fs.1.0.0       | nexora           | capability.enabled  | t       | t              | f
+ mcp.tool.git.1.0.0      | nexora           | capability.enabled  | t       | t              | f
+ mcp.tool.preview.1.0.0  | nexora           | capability.enabled  | t       | t              | t
+ mcp.tool.terminal.1.0.0 | nexora           | capability.enabled  | t       | t              | f
+
+== Q7 declarative seed coverage (ir_model_data) ==
+          model           | xmlid_rows 
+--------------------------+------------
+ nexora.connector         |          3
+ nexora.mcp_credential    |          2
+ nexora.mcp_server_config |          3
+
+          model           |           name            
+--------------------------+---------------------------
+ nexora.connector         | connector_firecrawl_mcp
+ nexora.connector         | connector_penpot_mcp
+ nexora.connector         | connector_tavily_mcp
+ nexora.mcp_credential    | credential_penpot_api_key
+ nexora.mcp_credential    | credential_tavily_api_key
+ nexora.mcp_server_config | config_firecrawl_mcp
+ nexora.mcp_server_config | config_penpot_mcp
+ nexora.mcp_server_config | config_tavily_mcp
+
+== Q8 nexora config parameters (keys only, never values) ==
+                 key                  | value_len 
+--------------------------------------+-----------
+ nexora.active_ai_provider            |        10
+ nexora.core.cost_router_tier_complex |        10
+ nexora.mcp_registry_hash             |        64
+ nexora.nvidia.api_key                |        70
+ nexora.nvidia.base_url               |        35
+ nexora.nvidia.enabled                |         4
+ nexora.nvidia.timeout                |         3
+ nexora.openrouter.api_key            |        20
+ nexora.openrouter.base_url           |        28
+ nexora.openrouter.default_model      |        10
+ nexora.openrouter.enabled            |         4
+ nexora.openrouter.fallback_model     |        35
+ nexora.openrouter.timeout            |         3
+ nexora.test.api_key                  |        14
+ nexora.test.default_model            |        10
+ nexora.workspace_root                |        26
+

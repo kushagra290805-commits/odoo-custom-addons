@@ -10,7 +10,13 @@ class LocalToolExecutor(ExecutionTarget):
         
     def execute(self, payload: dict) -> CapabilityResult:
         if self.tool_registry is None:
-            return CapabilityResult(success=True, result="Executed locally (mock)", logs=["Mock local execution"])
+            # Phase 44.2 (W2 / G-10): never mock-succeed. A missing tool
+            # registry is a real failure and must surface as one.
+            return CapabilityResult(
+                success=False,
+                result=None,
+                logs=["Local tool registry unavailable — execution refused (no mock fallback)."],
+            )
             
         tool_id = payload.get("tool_id")
         args = payload.get("args", {})

@@ -1,0 +1,57 @@
+# PC-4 post-closure evidence snapshot — nexora_cert (Phase 44.2 closure)
+# Captured after the 19.0.1.0.2 migration + full upgrade cycle.
+# Source: docs/reports/artefacts/phase44_evidence_queries.sql (read-only; lengths only, never values)
+
+== Q3 totals (11.3) ==
+capability_row_total      : 67   (was 0 pre-closure)
+capability_definition_total: 67  (was 0 pre-closure)
+
+== Q1 core inventory (post-closure) ==
+connector_id   | transport | state   | health  | auth_loc
+context7_mcp   | stdio     | failed  | failed  | env
+firecrawl_mcp  | stdio     | failed  | failed  | env
+github_mcp     | stdio     | failed  | failed  | env
+penpot_mcp     | sse       | failed  | failed  | query/userToken
+tavily_mcp     | stdio     | failed  | failed  | env
+
+NOTE on state=failed: the closure runs were executed with a PLACEHOLDER
+NEXORA_CONNECTOR_SECRET_KEY (deliberately not the real master key), so every
+declared credential is unresolvable and the fail-closed contract (ADR-0071 R3,
+W9/G-12) correctly refused to connect unauthenticated and downgraded each
+connector to FAILED at startup reconciliation. This is the intended truthful
+behaviour — it proves fail-closed works end-to-end. With the real key supplied
+via the environment, reconciliation restores RUNNING (pre-closure behaviour).
+
+== Q2 launch configuration (post-closure) ==
+All four stdio connectors declare their credential via
+{"<KEY>": "__INJECT_VIA_NEXORA_MCP_CREDENTIAL__"} in env_vars_json;
+authentication_location = 'env'. penpot remains sse/query/userToken with an
+empty env dict.
+
+== Q4 discovered tool totals ==
+67 total (context7 2, firecrawl 27, github 29, penpot 4, tavily 5) — unchanged;
+discovery data preserved by the repair.
+
+== Q5 credentials ==
+5 rows, all is_set=true; ciphertext lengths unchanged from the PC4
+pre-closure snapshot (no credential value was read or rewritten).
+
+== Q6 capability registry enablement (after forced resync) ==
+mcp.gsap_docs : enabled=f, state=capability.disabled  (was t/enabled)
+mcp.mdn_docs  : enabled=f, state=capability.disabled  (was t/enabled)
+stored hash == current file sha256:
+c1d72a04d42f2a03ff8cac7bfa383ab48ecd57deb87df8a86a431dba2aeecc97
+
+== Q7 declarative seed coverage (ir_model_data, module=nexora_studio) ==
+nexora.connector        : 5 rows  (was 3 — context7 + github adopted)
+nexora.mcp_server_config: 5 rows  (was 3 — context7 + github adopted)
+nexora.mcp_credential   : 5 rows  (was 2 — firecrawl, context7, github PAT adopted)
+
+== Q8 config parameters (keys only) ==
+nexora.nvidia.api_key : ABSENT (removed by 19.0.1.0.2 post-migrate; was present, len 70)
+nexora.mcp_registry_hash : present, equals computed file hash
+
+== Migration idempotency proof ==
+Second `-u nexora_studio` run: "0 failed, 0 error(s)" load; manifest lengths
+and projection counts identical after re-run (repair skips already-valid
+manifests; projection rebuild is truncate+repopulate of derived data).
