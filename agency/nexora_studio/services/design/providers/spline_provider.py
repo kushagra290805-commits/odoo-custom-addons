@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Spline Rendering Provider — Phase 37.2
+Spline Rendering Provider — Phase 37.2 / Phase 47.9 (U8).
 
 Canonical Spline 3D rendering provider for Nexora Studio.
 Generates and validates React project artifacts that embed Spline scenes
@@ -10,6 +10,27 @@ This provider does NOT execute Node.js, spawn processes, or invoke the
 Spline runtime from the backend. It generates declarative React components
 that reference Spline scenes by validated URL. The browser-side React
 application is responsible for rendering.
+
+Phase 47.9 (U8) closes this provider into a real renderer: it emits the
+Spline integration structure (dependency + SplineScene component) for an
+explicit Spline requirement with a validated scene reference. It never
+fabricates a scene: a missing or unsafe scene reference fails generation.
+No Spline connector, Spline MCP, Spline source row, or direct Spline API
+access exists or is introduced.
+
+Runtime marker contract (Phase 47.14 / U9.5):
+- the generated SplineScene.jsx sets ``window.__NEXORA_RENDERER_RUNTIME__``
+  from the Spline component's ``onLoad`` callback ONLY - never
+  unconditionally - with the shape
+  ``{provider, initialized, scene_loaded, scene_status}``;
+- ``initialized`` is true once the Spline React integration initialized;
+- ``scene_loaded`` is derived from the actual scene-resource response
+  (``fetch`` + ``response.ok``) because the Spline runtime resolves load()
+  even for invalid scene data - a broken scene must never report
+  ``scene_loaded`` as true;
+- the marker is read only by the existing Playwright provider's browser
+  runtime probe; the ValidationEngine interprets the probe evidence
+  through the existing issue contract.
 """
 
 import re
@@ -35,6 +56,18 @@ _APPROVED_SPLINE_EXTENSIONS = frozenset({
     ".splinecode",
     ".spline",
 })
+
+# Renderer dependency version defined by this provider contract.
+# NOTE: @splinetool/runtime is pinned to the 1.x line deliberately.
+# react-spline declares peerDep "@splinetool/runtime": "*", and npm >=7
+# auto-installs peer deps at the latest version; runtime 2.0.x depends on
+# "@splinetool/animation-core", which is not published to npm (E404 upstream),
+# breaking every fresh install. The 1.x line is the last published, complete
+# runtime and matches the version contract used by this addon.
+_SPLINE_DEPENDENCIES = {
+    "@splinetool/react-spline": "^4.1.0",
+    "@splinetool/runtime": "^1.12.98",
+}
 
 
 def validate_spline_scene_url(url: str) -> Dict[str, Any]:
@@ -104,6 +137,116 @@ class SplineRenderingProvider(ReactRenderingProvider):
         from .provider_registry import RenderingProviderRegistry
         return RenderingProviderRegistry.get_provider_metadata("spline")
 
+    # ------------------------------------------------------------------
+    # Renderer dependency contract
+    # ------------------------------------------------------------------
+
+    def _extra_dependencies(self, context: RenderingContext) -> Dict[str, str]:
+        return dict(_SPLINE_DEPENDENCIES)
+
+    # ------------------------------------------------------------------
+    # Renderer scaffold synthesis
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _generate_spline_scene_jsx(scene_url: str) -> str:
+        # Phase 47.14 (U9.5): onLoad alone is NOT sufficient proof that the
+        # scene loaded - the Spline runtime resolves load() (and fires onLoad)
+        # even when the scene data is invalid; broken scenes surface later as
+        # uncaught render errors. The marker therefore verifies the scene
+        # resource itself is actually retrievable (fetch + response.ok)
+        # before claiming scene_loaded. It is never set unconditionally, and
+        # the existing Playwright provider's browser runtime probe only READS
+        # it.
+        return f'''import React from 'react';
+import Spline from '@splinetool/react-spline';
+
+export default function SplineScene() {{
+  return (
+    <div className="spline-scene-container" style={{{{ width: '100%', height: '60vh' }}}}>
+      <Spline
+        scene="{scene_url}"
+        onLoad={{() => {{
+          fetch('{scene_url}')
+            .then((r) => {{
+              window.__NEXORA_RENDERER_RUNTIME__ = {{
+                provider: 'spline',
+                initialized: true,
+                scene_loaded: r.ok,
+                scene_status: r.status,
+              }};
+            }})
+            .catch((e) => {{
+              window.__NEXORA_RENDERER_RUNTIME__ = {{
+                provider: 'spline',
+                initialized: true,
+                scene_loaded: false,
+                error: String(e),
+              }};
+            }});
+        }}}}
+      />
+    </div>
+  );
+}}'''
+
+    def generate_project(self, context: RenderingContext) -> Dict[str, Any]:
+        # An explicit Spline requirement must carry a scene reference already
+        # present in the requirements/design artifact. The provider never
+        # invents a scene URL: missing or unsafe references fail generation.
+        scene_url = str((context.output_config or {}).get('spline_scene_url') or '').strip()
+        url_check = validate_spline_scene_url(scene_url)
+        if not url_check.get("valid"):
+            return {
+                "status": "error",
+                "provider": self.get_metadata().provider_id,
+                "project_structure": {},
+                "dependencies": {},
+                "validation": {"valid": False, "errors": [url_check.get("error", "Invalid Spline scene reference.")]},
+                "errors": [
+                    f"Spline scene reference rejected: {url_check.get('error', 'invalid reference')}. "
+                    "An explicit Spline requirement must provide a validated scene URL "
+                    "(HTTPS on an approved Spline host, or a local .splinecode asset)."
+                ],
+            }
+
+        result = super().generate_project(context)
+        if result.get("status") != "success":
+            return result
+
+        project_structure: Dict[str, str] = dict(result.get("project_structure") or {})
+        project_structure['src/components/SplineScene.jsx'] = self._generate_spline_scene_jsx(scene_url)
+
+        # Re-validate the final structure including the Spline integration.
+        val_res = self.validate_project(context, project_structure)
+
+        try:
+            import json as _json
+            dependencies = _json.loads(project_structure.get('package.json', '{}')).get('dependencies', {})
+        except Exception:
+            dependencies = {}
+
+        if not val_res.get("valid", False):
+            return {
+                "status": "error",
+                "provider": self.get_metadata().provider_id,
+                "project_structure": project_structure,
+                "dependencies": dependencies,
+                "validation": val_res,
+                "errors": val_res.get("errors", []),
+            }
+
+        result["project_structure"] = project_structure
+        result["dependencies"] = dependencies
+        result["validation"] = val_res
+        metadata = dict(result.get("metadata") or {})
+        metadata["renderer_strategy"] = "spline"
+        metadata["spline_scene_url"] = scene_url
+        metadata["spline_scene_source_type"] = url_check.get("source_type")
+        metadata["spline_integration_entry"] = "src/components/SplineScene.jsx"
+        result["metadata"] = metadata
+        return result
+
     def validate_project(self, context: RenderingContext, project_structure: Dict[str, str]) -> Dict[str, Any]:
         """
         Extends the standard React validate_project with Spline-specific checks.
@@ -117,7 +260,7 @@ class SplineRenderingProvider(ReactRenderingProvider):
         # Run the base React validation (mode-aware — spline provider_id
         # will bypass the 'three' and '@splinetool' restrictions)
         base_result = super().validate_project(context, project_structure)
-        errors = base_result.get("errors", [])
+        errors = list(base_result.get("errors", []))
 
         # Check package.json for required Spline dependency
         pkg_json = project_structure.get('package.json', '')
@@ -126,7 +269,7 @@ class SplineRenderingProvider(ReactRenderingProvider):
 
         # Scan source files for Spline-specific validation
         for filepath, code in project_structure.items():
-            if not (filepath.endswith('.jsx') or filepath.endswith('.js')):
+            if not filepath.endswith(self._source_extensions):
                 continue
 
             code_lower = code.lower()

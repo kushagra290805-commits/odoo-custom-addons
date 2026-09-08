@@ -19,3 +19,4 @@ final_pre_runtime_status.md
 full_uncommitted_diff.txt
 pre_phase29_worktree.patch
 pre_phase29_worktree_manifest.txt
+node_modules/

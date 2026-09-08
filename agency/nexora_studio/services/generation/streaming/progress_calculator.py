@@ -12,6 +12,7 @@ class ProgressCalculator:
         "CODE_GENERATION_COMPLETED": 80,
         "VALIDATION_COMPLETED": 95,
         "PREVIEW_READY": 100,
+        "BROWSER_VALIDATED": 100,
         "DEPLOYMENT_READY": 100,
         "COMPLETED": 100,
         "FAILED": 100,

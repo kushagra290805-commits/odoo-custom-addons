@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import urllib.parse
 from typing import Optional, Any, Dict
 from concurrent.futures import Future
 
@@ -42,10 +43,6 @@ import sys
 import logging
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
-# Must be the same httpx that the MCP SDK validates `auth` against: mcp.client.sse
-# type-checks `isinstance(auth, httpx.Auth)`, so aliasing httpx2 here would make
-# QueryAuth subclass a foreign base class and be rejected as an invalid auth argument.
-import httpx
 
 _logger = get_logger(__name__)
 
@@ -55,14 +52,21 @@ class TransportBinding:
     name: str
     value: str
 
-class QueryAuth(httpx.Auth):
-    def __init__(self, key: str, value: str):
-        self.key = key
-        self.value = value
+def _append_query_param(url: str, name: str, value: str) -> str:
+    """Append a single query parameter to ``url``.
 
-    def auth_flow(self, request: httpx.Request):
-        request.url = request.url.copy_merge_params({self.key: self.value})
-        yield request
+    Preserves any existing query string (order included), replaces an
+    existing occurrence of ``name`` so the freshest value wins, and
+    percent-encodes name/value via ``urllib.parse.urlencode``.
+    """
+    parsed = urllib.parse.urlparse(url)
+    pairs = [
+        (k, v)
+        for k, v in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+        if k != name
+    ]
+    pairs.append((name, value))
+    return urllib.parse.urlunparse(parsed._replace(query=urllib.parse.urlencode(pairs)))
 
 class McpTransport:
     """
@@ -128,13 +132,27 @@ class McpTransport:
 
             elif self.config.transport == 'sse':
                 from mcp.client.sse import sse_client
-                import urllib.parse
 
                 url = self.config.command
                 headers = {}
-                auth = None
 
-                # Apply generic authentication
+                # Apply ephemeral transport binding
+                if self.transport_binding:
+                    if self.transport_binding.location == 'header':
+                        headers[self.transport_binding.name] = self.transport_binding.value
+                    elif self.transport_binding.location == 'query':
+                        url = _append_query_param(url, self.transport_binding.name, self.transport_binding.value)
+
+                # Apply generic authentication.
+                # Phase 44.2 closure: auth_location=query is delivered by
+                # appending the already-resolved credential to the endpoint
+                # URL instead of passing a custom httpx.Auth object. MCP SDK
+                # >= 2.0 validates the `auth` argument against httpx2.Auth,
+                # so any httpx.Auth subclass was rejected with a TypeError
+                # before a single request was sent. URL delivery behaves
+                # identically on SDK 1.x and 2.x. Applied after the ephemeral
+                # binding so the configured credential wins on key collision,
+                # matching the previous merge-at-request semantics.
                 if self.config.auth_location != 'none' and self.config.auth_name and self.config.auth_secret:
                     if self.config.auth_location == 'header':
                         auth_val = self.config.auth_secret
@@ -143,31 +161,49 @@ class McpTransport:
                             auth_val = f"{scheme} {auth_val}"
                         headers[self.config.auth_name] = auth_val
                     elif self.config.auth_location == 'query':
-                        auth = QueryAuth(self.config.auth_name, self.config.auth_secret)
-                        
-                # Apply ephemeral transport binding
-                if self.transport_binding:
-                    if self.transport_binding.location == 'header':
-                        headers[self.transport_binding.name] = self.transport_binding.value
-                    elif self.transport_binding.location == 'query':
-                        parsed = urllib.parse.urlparse(url)
-                        query = dict(urllib.parse.parse_qsl(parsed.query))
-                        query[self.transport_binding.name] = self.transport_binding.value
-                        parsed = parsed._replace(query=urllib.parse.urlencode(query))
-                        url = urllib.parse.urlunparse(parsed)
+                        url = _append_query_param(url, self.config.auth_name, self.config.auth_secret)
 
-                async with sse_client(url=url, headers=headers if headers else None, auth=auth) as (read, write):
-                    if self.config.trace_file:
-                        read = TraceReceiveStream(read, self.config.trace_file)
-                        write = TraceSendStream(write, self.config.trace_file)
+                # Phase 44.2 closure (log safety): httpx (SDK 1.x) and
+                # httpx2 (SDK 2.x) emit each request line — including the
+                # full URL and its query string — at INFO level. Whenever a
+                # query parameter was appended (auth credential or ephemeral
+                # binding), silence those loggers for the lifetime of this
+                # connection so the credential never reaches the logs.
+                # WARNING+ records still pass through.
+                quiet_loggers = []
+                if url != self.config.command:
+                    for _name in ('httpx', 'httpx2'):
+                        _lgr = logging.getLogger(_name)
+                        quiet_loggers.append((_lgr, _lgr.level))
+                        _lgr.setLevel(logging.WARNING)
 
-                    async with ClientSession(read, write) as session:
-                        self._session = session
-                        await session.initialize()
-                        ready_future.set_result(True)
+                try:
+                    async with sse_client(url=url, headers=headers if headers else None) as (read, write):
+                        if self.config.trace_file:
+                            read = TraceReceiveStream(read, self.config.trace_file)
+                            write = TraceSendStream(write, self.config.trace_file)
 
-                        # Keep the context managers open until exit is requested
-                        await self._exit_event.wait()
+                        async with ClientSession(read, write) as session:
+                            self._session = session
+                            await session.initialize()
+                            ready_future.set_result(True)
+
+                            # Keep the context managers open until exit is requested
+                            await self._exit_event.wait()
+                except Exception as exc:
+                    # Never let the credential-bearing URL escape into error
+                    # text, logs, or tracebacks: rewrite any occurrence back
+                    # to the configured (credential-free) endpoint before the
+                    # exception propagates.
+                    if url != self.config.command:
+                        message = str(exc).replace(url, self.config.command)
+                        pair = urllib.parse.urlencode({self.config.auth_name: self.config.auth_secret})
+                        message = message.replace(pair, f"{self.config.auth_name}=<redacted>")
+                        raise RuntimeError(message) from None
+                    raise
+                finally:
+                    for _lgr, _lvl in quiet_loggers:
+                        _lgr.setLevel(_lvl)
             else:
                 raise ValueError(f"Unsupported transport: {self.config.transport}")
 

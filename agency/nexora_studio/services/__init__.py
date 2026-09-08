@@ -82,3 +82,4 @@ from . import execution_sandbox_service
 
 from . import capability_providers_service
 from . import capabilities
+from . import client_environment_service

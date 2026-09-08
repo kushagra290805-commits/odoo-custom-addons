@@ -1,10 +1,6 @@
 import logging
-from typing import Any, List, Dict
 from odoo.addons.nexora_studio.services.generation.engines.base_engine import BaseGenerationEngine, EngineExecutionResult
-from odoo.addons.nexora_studio.services.generation.core.generation_context import WebsiteGenerationArtifact, ComponentTree
-from odoo.addons.nexora_studio.services.providers.base_provider import ProviderCategory, ProviderFeatureSet
-from odoo.addons.nexora_studio.services.source_framework.component_ranking_pipeline import ComponentRankingPipeline
-from odoo.addons.nexora_studio.services.source_framework.domain_models import ComponentPackage, Provenance
+from odoo.addons.nexora_studio.services.generation.core.generation_context import WebsiteGenerationArtifact
 
 _logger = logging.getLogger(__name__)
 
@@ -24,7 +20,7 @@ class ComponentDiscoveryEngine(BaseGenerationEngine):
 
         candidates = []
         try:
-            env = runtime.orchestrator.env if hasattr(runtime, 'orchestrator') else None
+            env = runtime.env
 
             # Use the Planner and Orchestrator to resolve components
             if env:
@@ -40,24 +36,39 @@ class ComponentDiscoveryEngine(BaseGenerationEngine):
                 builder_context = {"required_types": list(required_types)}
 
                 # Fetch components using canonical SearchEngine path
-                search_results = search_engine.search(objective, builder_context)
+                search_results = search_engine.search(
+                    objective,
+                    builder_context,
+                    operation='COMPONENT_SOURCE',
+                )
 
-                for result in search_results:
-                    pkg = result.get("package")
-                    if pkg:
-                        candidates.append(pkg)
+                candidates.extend(search_results)
+                provider_errors = list(search_engine.provider_errors)
 
                 _logger.info(f"ComponentDiscovery found {len(candidates)} candidates via SearchEngine.")
 
         except Exception as e:
             _logger.warning(f"SearchEngine-based component discovery failed: {e}")
 
-        # In a real environment, we'd extract the components from trace.final_output.
-        # For now, pass empty candidates or what we found.
+        provider_errors = locals().get('provider_errors', [])
+
+        # Phase 45 (ADR-0072): publish ranked candidates on the artifact bus so
+        # downstream engines (ComponentIntelligenceEngine) can consume them —
+        # result.metadata alone never reaches other engines (pipeline merges
+        # it into context.metadata, which engines do not receive).
+        artifact = artifact.evolve(generation_metadata={
+            **artifact.generation_metadata,
+            "candidate_components": candidates,
+            "component_provider_errors": provider_errors,
+        })
 
         return EngineExecutionResult(
             success=True,
             artifact=artifact,
-            metadata={"candidate_components": candidates, "discovery_status": "completed"},
+            metadata={
+                "candidate_components": candidates,
+                "component_provider_errors": provider_errors,
+                "discovery_status": "completed",
+            },
             error=None
         )

@@ -4,7 +4,7 @@
     # Nexora Studio - Enterprise Foundation
     # ---------------------------------------------------------
     'name': 'Nexora Studio',
-    'version': '1.0.2',
+    'version': '19.0.1.0.6',
     'category': 'Services',
     'summary': 'Enterprise digital service agency operating system',
     'description': 'Initial enterprise foundation for Nexora Studio (Odoo 19 Community).',
@@ -58,10 +58,12 @@
         # imperative Context7 / GitHub connectors.
         'data/connector_context7_data.xml',
         'data/connector_github_data.xml',
-        # Phase 26 — Universal Connector Platform
+        # Phase 46 / ADR-0073: Gosom business-location intelligence connector.
+        'data/connector_gosom_data.xml',
+        # Phase 26 Ã¢â‚¬â€ Universal Connector Platform
         'data/connector_health_cron.xml',
         'views/connector_views.xml',
-        # Phase 28 — MCP Connector Onboarding
+        # Phase 28 Ã¢â‚¬â€ MCP Connector Onboarding
         'views/mcp_server_views.xml',
         'wizard/mcp_connection_test_wizard.xml',
     ],

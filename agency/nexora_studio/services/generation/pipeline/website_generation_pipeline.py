@@ -25,11 +25,36 @@ from odoo.addons.nexora_studio.services.generation.engines.workspace_generator_e
 
 from odoo.addons.nexora_studio.services.generation.events.events import (
     StateTransitionStarted, StateTransitionCompleted,
-    EngineStarted, EngineCompleted, EngineFailed
+    EngineStarted, EngineCompleted, EngineFailed, PipelineEvent
 )
 from odoo.addons.nexora_studio.services.generation.events.pipeline_event_bus import PipelineEventBus
 
 _logger = logging.getLogger(__name__)
+
+
+def _bounded_event_metadata(value: Any, depth: int = 3) -> Any:
+    """Phase 47.29: bounded copy of engine result metadata for event
+    payloads. The composition manifest and evidence keys travel to the
+    operator through the EXISTING event/streaming path (EngineCompleted
+    → SSE); without bounding, codegen evidence (per-section records,
+    stock photo evidence) could grow unbounded. Depth-, list-, dict- and
+    string-capped; scalars pass through; recursion-safe for cycles."""
+    if depth < 0:
+        return None
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        return value[:240]
+    if isinstance(value, (list, tuple)):
+        return [_bounded_event_metadata(v, depth - 1) for v in value[:12]]
+    if isinstance(value, dict):
+        out = {}
+        for i, (k, v) in enumerate(value.items()):
+            if i >= 24:
+                break
+            out[str(k)[:80]] = _bounded_event_metadata(v, depth - 1)
+        return out
+    return str(value)[:240]
 
 class WebsiteGenerationPipeline:
     def __init__(self, orchestrator, state_manager, event_bus: PipelineEventBus = None):
@@ -51,12 +76,17 @@ class WebsiteGenerationPipeline:
             GenerationState.DESIGN_COMPLETED: (TemplateResolutionEngine(orchestrator), GenerationState.TEMPLATE_RESOLVED),
             GenerationState.TEMPLATE_RESOLVED: (DesignOrchestrationEngine(orchestrator), GenerationState.DESIGN_ORCHESTRATED),
             GenerationState.DESIGN_ORCHESTRATED: (AssetEngine(orchestrator), GenerationState.ASSETS_GENERATED),
-            GenerationState.ASSETS_GENERATED: (WorkspaceGeneratorEngine(orchestrator), GenerationState.WORKSPACE_PREPARED),
+            GenerationState.ASSETS_GENERATED: (ContentEngine(orchestrator), GenerationState.CONTENT_GENERATED),
+            GenerationState.CONTENT_GENERATED: (WorkspaceGeneratorEngine(orchestrator), GenerationState.WORKSPACE_PREPARED),
             GenerationState.WORKSPACE_PREPARED: (CodeGenerationEngine(orchestrator), GenerationState.CODE_GENERATION_COMPLETED),
             GenerationState.CODE_GENERATION_COMPLETED: (ReviewEngine(orchestrator), GenerationState.REVIEW_COMPLETED),
             GenerationState.REVIEW_COMPLETED: (ValidationEngine(orchestrator), GenerationState.VALIDATION_COMPLETED),
             GenerationState.VALIDATION_COMPLETED: (PreviewEngine(orchestrator), GenerationState.PREVIEW_READY),
-            GenerationState.PREVIEW_READY: (OptimizationEngine(orchestrator), GenerationState.DEPLOYMENT_READY),
+            # Phase 47.13 (U9.4): browser validation runs AFTER preview health,
+            # owned by the SAME ValidationEngine (browser phase) — never before
+            # preview, never through a second validator.
+            GenerationState.PREVIEW_READY: (ValidationEngine(orchestrator, phase='browser'), GenerationState.BROWSER_VALIDATED),
+            GenerationState.BROWSER_VALIDATED: (OptimizationEngine(orchestrator), GenerationState.DEPLOYMENT_READY),
         }
 
     def run(self, context: GenerationContext, runtime: 'GenerationRuntime' = None) -> GenerationContext:
@@ -72,6 +102,14 @@ class WebsiteGenerationPipeline:
             if self.state_manager.check_interruption(context.context_id):
                 context = context.evolve(state=GenerationState.INTERRUPTED)
                 self.state_manager.save_checkpoint(context)
+                self.event_bus.publish(PipelineEvent(
+                    session_id=session_id,
+                    generation_id=context.context_id,
+                    correlation_id=context.context_id,
+                    current_state=GenerationState.INTERRUPTED.name,
+                    event_category='Generation',
+                    event_type='GenerationInterrupted',
+                ))
                 _logger.warning(f"Pipeline interrupted at state {context.state.name}")
                 return context
 
@@ -124,7 +162,13 @@ class WebsiteGenerationPipeline:
                         correlation_id=context.context_id,
                         current_state=state_name,
                         engine_name=engine_name,
-                        metadata={'duration_ms': round(engine_duration * 1000, 2)}
+                        # Phase 47.29: a bounded copy of the engine's result
+                        # metadata rides the EXISTING event → SSE operator
+                        # path (composition manifest, evidence counts).
+                        metadata={
+                            'duration_ms': round(engine_duration * 1000, 2),
+                            'engine_result': _bounded_event_metadata(result.metadata),
+                        }
                     ))
                     
                     # Reconstruct Context and advance state
@@ -141,7 +185,12 @@ class WebsiteGenerationPipeline:
                         session_id=session_id,
                         generation_id=context.context_id,
                         correlation_id=context.context_id,
-                        current_state=next_state.name
+                        current_state=next_state.name,
+                        metadata={
+                            'completed_steps': current_step_idx + 1,
+                            'total_steps': total_steps,
+                            'percentage': percentage,
+                        },
                     ))
                     
                     if runtime and hasattr(runtime, 'hooks'):

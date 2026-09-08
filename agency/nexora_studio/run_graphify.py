@@ -31,6 +31,19 @@ if code_files:
 else:
     ast_result = {'nodes':[],'edges':[],'input_tokens':0,'output_tokens':0}
 
+# Phase 47.28B: extraction sanity floor. The 8-worker pool can crash
+# partway ("process terminated abruptly") and still report 100% — the
+# 2026-09-06 first run produced 981 nodes instead of ~9300 this way, and
+# graphify's to_json shrink-refusal then silently kept the stale graph.
+# A healthy full extraction yields several nodes per file; abort loudly
+# below the floor instead of building a misleading shrunken graph.
+FLOOR = 2 * max(1, len(code_files))
+if len(ast_result['nodes']) < FLOOR:
+    print(f"ERROR: AST extraction produced {len(ast_result['nodes'])} nodes "
+          f"for {len(code_files)} files (floor {FLOOR}) — worker pool "
+          f"failure suspected. Graph NOT rebuilt; previous graph kept.")
+    sys.exit(1)
+
 print(f"AST: {len(ast_result['nodes'])} nodes, {len(ast_result['edges'])} edges")
 
 print("3. Skipping Semantic Extraction (Mock)...")
@@ -61,7 +74,11 @@ surprises = surprising_connections(G, communities)
 labels = {cid: 'Community ' + str(cid) for cid in communities}
 questions = suggest_questions(G, communities, labels)
 
-to_json(G, communities, 'graphify-out/graph.json')
+# Phase 47.28B: force=True — this script always performs a FULL extraction
+# (validated by the sanity floor above), so small node-count reductions
+# from fuzzy symbol dedup are legitimate. Without force, graphify's
+# shrink-refusal (#479) silently keeps the previous graph.json.
+to_json(G, communities, 'graphify-out/graph.json', force=True)
 
 analysis = {
     'communities': {str(k): v for k, v in communities.items()},

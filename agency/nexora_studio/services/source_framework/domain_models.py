@@ -90,3 +90,13 @@ class BusinessData:
     category: str
     payload: Dict[str, Any] = field(default_factory=dict)
     provenance: Optional[Provenance] = None
+
+
+# ---------------------------------------------------------------------------
+# ADR-0064 renderer metadata vocabulary (Phase 45 / ADR-0072).
+# Attach these keys to ComponentPackage.metadata ONLY for artifacts that
+# factually qualify as 3D generation-relevant components/scenes.
+# ---------------------------------------------------------------------------
+METADATA_THREE_D_SCENE = 'three_d_scene'
+METADATA_ASSET_FORMAT = 'asset_format'
+METADATA_RENDERER_EXPECTATION = 'renderer_expectation'

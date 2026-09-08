@@ -7,7 +7,7 @@
             <field name="adapter_class">McpSourceAdapter</field>
             <field name="connector_id" search="[('connector_id', '=', 'github_mcp')]"/>
             <field name="sequence">10</field>
-            <field name="capabilities">SEARCH,GET</field>
+            <field name="capabilities">SEARCH,FETCH</field>
             <field name="config_json"><![CDATA[{
     "capability_map": {
         "search": "search_code",
@@ -34,7 +34,7 @@
             <field name="adapter_class">McpSourceAdapter</field>
             <field name="connector_id" search="[('connector_id', '=', 'github_mcp')]"/>
             <field name="sequence">20</field>
-            <field name="capabilities">SEARCH,GET</field>
+            <field name="capabilities">SEARCH,FETCH</field>
             <field name="config_json"><![CDATA[{
     "capability_map": {
         "search": "search_code",
@@ -54,6 +54,114 @@
         "name": "name"
     }
 }]]></field>
+        </record>
+
+        <!-- Phase 45 / ADR-0072: GitHub repository intelligence over the
+             existing github_mcp connector. Artifacts are canonical
+             RepositoryArtifact models; ordering is tool retrieval order
+             (NOT component-ranking semantics). -->
+        <record id="source_github_repo_intelligence" model="nexora.source_registry">
+            <field name="name">GitHub Repository Intelligence</field>
+            <field name="technical_name">github_repo_intelligence</field>
+            <field name="adapter_class">McpSourceAdapter</field>
+            <field name="connector_id" search="[('connector_id', '=', 'github_mcp')]"/>
+            <field name="sequence">30</field>
+            <field name="capabilities">REPOSITORY_INTELLIGENCE,FETCH</field>
+            <field name="config_json"><![CDATA[{
+    "capability_map": {
+        "repo_search": "search_repositories",
+        "code_search": "search_code",
+        "fetch_file": "get_file_contents"
+    },
+    "normalization": {
+        "artifact_id": "id",
+        "path": "full_name"
+    }
+}]]></field>
+        </record>
+
+        <!-- Phase 45 / ADR-0072 + ADR-0064: high-value 3D component source
+             over the existing github_mcp connector. Packages are produced ONLY
+             after declarative qualification (path filter + content gate +
+             dependency validation when info exists); bare repository results
+             never become components. -->
+        <record id="source_threed_component_library" model="nexora.source_registry">
+            <field name="name">3D Component Library</field>
+            <field name="technical_name">threed_component_library</field>
+            <field name="adapter_class">McpSourceAdapter</field>
+            <field name="connector_id" search="[('connector_id', '=', 'github_mcp')]"/>
+            <field name="sequence">40</field>
+            <field name="capabilities">COMPONENT_SOURCE,SEARCH,FETCH</field>
+            <field name="config_json"><![CDATA[{
+    "capability_map": {
+        "discover": "search_code",
+        "fetch_file": "get_file_contents"
+    },
+    "discovery": {
+        "intent": "discover",
+        "query": "@react-three/fiber Canvas org:pmndrs language:tsx",
+        "limit": 3
+    },
+    "qualification": {
+        "candidate_path_pattern": "\\.(tsx|jsx)$",
+        "content_required_any": ["@react-three/fiber", "@react-three/drei"],
+        "required_dependencies": ["three", "@react-three/fiber"],
+        "fetch_intent": "fetch_file",
+        "metadata": {
+            "three_d_scene": true,
+            "renderer_expectation": "react_three_fiber"
+        }
+    }
+}]]></field>
+        </record>
+
+        <!-- Phase 47.16: Tavily web-research knowledge source over the
+             existing tavily_mcp connector. The tavily_search MCP tool
+             returns a human-readable "Title/ID/URL/Content" text report
+             (not JSON), so the row declares a text_result_format that the
+             canonical McpSourceAdapter parses generically; the field
+             normalization then satisfies the KnowledgeDocument structural
+             heuristic. Canonical path:
+                 tavily_mcp -> SEARCH -> tavily_search
+                 -> KnowledgeDocument -> KnowledgeEnrichmentEngine
+                 -> artifact.knowledge['knowledge_documents'].
+             Invoked demand-driven by the KnowledgeEnrichmentEngine through
+             get_capable_providers('SEARCH') with the requirements-derived
+             domain/target-audience query. -->
+        <record id="source_tavily_knowledge" model="nexora.source_registry">
+            <field name="name">Tavily Knowledge Search</field>
+            <field name="technical_name">tavily_knowledge</field>
+            <field name="adapter_class">McpSourceAdapter</field>
+            <field name="connector_id" search="[('connector_id', '=', 'tavily_mcp')]"/>
+            <field name="sequence">60</field>
+            <field name="capabilities">SEARCH</field>
+            <field name="config_json"><![CDATA[{
+    "capability_map": {
+        "search": "tavily_search"
+    },
+    "default_payload": {
+        "max_results": 5
+    },
+    "text_result_format": {
+        "block_start_field": "Title",
+        "fields": ["Title", "ID", "URL", "Content"]
+    },
+    "normalization": {
+        "document_id": "URL",
+        "title": "Title",
+        "content": "Content"
+    }
+}]]></field>
+        </record>
+    </data>
+    <data noupdate="0">
+        <!-- Phase 45 / ADR-0072 decision 4: semantic capability declarations.
+             Applied on upgrade so existing rows adopt the reconciled contract. -->
+        <record id="source_react_bits" model="nexora.source_registry">
+            <field name="capabilities">SEARCH,FETCH</field>
+        </record>
+        <record id="source_shadcn" model="nexora.source_registry">
+            <field name="capabilities">SEARCH,FETCH</field>
         </record>
     </data>
 </odoo>

@@ -297,6 +297,17 @@ class BuilderSession(models.Model):
         for record in self:
             service.destroy_session(record)
 
+    # Phase 47.31 (ADR-0082): canonical Console generation entry through the
+    # FastAPI BFF. A thin record wrapper in the exact action_* precedent of
+    # this model — it delegates to the ONE canonical generation owner
+    # (BuilderSessionService.run_generation) and never to a parallel
+    # execution engine. The dead nexora.execution_engine_service path is
+    # NOT resurrected.
+    def action_run_generation(self):
+        service = self.env['nexora.builder_session_service']
+        for record in self:
+            service.run_generation(record)
+
     # [MIGRATION]: Administration endpoint (UI Navigation)
     def action_view_originating_job(self):
         self.ensure_one()

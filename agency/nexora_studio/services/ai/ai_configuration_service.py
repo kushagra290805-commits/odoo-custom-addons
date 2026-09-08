@@ -151,12 +151,17 @@ class AIConfigurationService(models.AbstractModel):
         Centralized validation returning structured validation results.
         """
         errors = []
-        
-        # 1. API Key check
-        api_key = self.get_config(provider, 'api_key')
+
+        # 1. API Key check — the canonical execution credential is the
+        # provider-registry api_key (AIConfigurationService.
+        # get_provider_credentials); validation must judge the SAME
+        # credential the runtime will actually send, not the legacy
+        # nexora.<provider>.api_key config parameter.
+        credentials = self.get_provider_credentials(provider)
+        api_key = credentials.get('api_key') or ''
         if not api_key:
             errors.append({'type': 'missing_api_key', 'message': f'API key is missing for provider {provider}'})
-            
+
         # 2. Model check
         target_model = model_id or self.get_active_model(provider)
         if not target_model:
@@ -179,9 +184,17 @@ class AIConfigurationService(models.AbstractModel):
         Returns a health status for a provider (e.g., for a dashboard).
         Statuses: MISSING_CONFIG, VALIDATING, SYNCING, SYNC_FAILED, AUTH_FAILED, CATALOG_OUTDATED, HEALTHY
         """
-        enabled = self.get_config(provider, 'enabled', 'True')
-        if str(enabled).lower() not in ('true', '1', 'yes'):
+        # Canonical activity flag is the provider-registry record; the
+        # legacy nexora.<provider>.enabled parameter remains honored only
+        # when no registry record exists (kept for backward compatibility).
+        reg = self.env['nexora.provider.registry'].sudo().search(
+            [('provider_id', '=', provider)], limit=1)
+        if reg and not reg.is_active:
             return {'provider': provider, 'status': 'disabled', 'issues': []}
+        if not reg:
+            enabled = self.get_config(provider, 'enabled', 'True')
+            if str(enabled).lower() not in ('true', '1', 'yes'):
+                return {'provider': provider, 'status': 'disabled', 'issues': []}
 
         validation = self.validate_configuration(provider)
         errors = validation['errors']

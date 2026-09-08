@@ -514,9 +514,9 @@ export default function Card({
   ...props
 }) {
   const variantStyles = {
-    elevated: { background: 'var(--color-surface, rgba(255,255,255,0.05))', boxShadow: 'var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1))', border: '1px solid rgba(255,255,255,0.1)' },
-    outlined: { background: 'transparent', border: '1px solid rgba(255,255,255,0.2)' },
-    flat: { background: 'var(--color-surface, rgba(255,255,255,0.03))', border: 'none' }
+    elevated: { background: 'var(--color-surface, #f1f5f9)', boxShadow: 'var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1))', border: '1px solid var(--color-border, #e2e8f0)' },
+    outlined: { background: 'transparent', border: '1px solid var(--color-border, #e2e8f0)' },
+    flat: { background: 'var(--color-surface, #f1f5f9)', border: 'none' }
   };
 
   const cardStyle = {
@@ -1178,14 +1178,65 @@ export default function ContactForm({
   subtitle = 'We would love to hear from you. Please fill out the form below.',
   submitLabel = 'Send Message',
   onSubmit,
+  onSubmitLead,
   className = '',
   style = {},
   ...props
 }) {
+  // Phase 47.36: when an async `onSubmitLead(payload)` handler is bound
+  // (the capability-gated Client API lead binding), the form performs a
+  // REAL submission with explicit idle/submitting/success/error states,
+  // duplicate-submit protection, and a sanitized error surface — raw
+  // backend errors are never displayed. Without the binding the legacy
+  // presentational behavior is preserved unchanged.
+  const isLeadBound = typeof onSubmitLead === 'function';
   const [status, setStatus] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorText, setErrorText] = useState('');
 
-  const handleSubmit = (e) => {
+  const leadErrorText = (err) => {
+    const code = (err && err.code) || '';
+    if (code === 'CLIENT_CAPABILITY_UNAVAILABLE') {
+      return 'This contact form is not available right now. Please try again later.';
+    }
+    if (code === 'CLIENT_REQUEST_INVALID') {
+      return 'Please check your name, email, and message, then try again.';
+    }
+    if (code === 'CLIENT_NETWORK_ERROR' || code === 'HTTP_0') {
+      return 'We could not reach the server. Please try again in a moment.';
+    }
+    return 'Something went wrong while sending your message. Please try again later.';
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLeadBound) {
+      if (submitting) {
+        return;
+      }
+      const form = e.currentTarget;
+      const name = (form.querySelector('#contact-name') || {}).value || '';
+      const email = (form.querySelector('#contact-email') || {}).value || '';
+      const message = (form.querySelector('#contact-message') || {}).value || '';
+      if (!name.trim() || !email.trim() || !message.trim()) {
+        setErrorText('Please complete all required fields and try again.');
+        setStatus('error');
+        return;
+      }
+      setSubmitting(true);
+      setStatus(null);
+      try {
+        await onSubmitLead({ name: name, email: email, message: message });
+        setStatus('success');
+        form.reset();
+      } catch (err) {
+        setErrorText(leadErrorText(err));
+        setStatus('error');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     setStatus('success');
     if (onSubmit) onSubmit(e);
   };
@@ -1199,21 +1250,28 @@ export default function ContactForm({
               Thank you for contacting us. We will get back to you shortly.
             </Alert>
           )}
+          {status === 'error' && (
+            <Alert variant="error" title="Submission Failed" onClose={() => setStatus(null)}>
+              {isLeadBound
+                ? errorText
+                : 'Please complete all required fields and try again.'}
+            </Alert>
+          )}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1.5rem' }}>
             <div>
               <label htmlFor="contact-name" style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>Your Name</label>
-              <input id="contact-name" type="text" required placeholder="John Doe" style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md, 6px)', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'var(--color-text, #fff)' }} />
+              <input id="contact-name" name="name" type="text" maxLength={200} required placeholder="John Doe" style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md, 6px)', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'var(--color-text, #fff)' }} />
             </div>
             <div>
               <label htmlFor="contact-email" style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>Email Address</label>
-              <input id="contact-email" type="email" required placeholder="john@example.com" style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md, 6px)', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'var(--color-text, #fff)' }} />
+              <input id="contact-email" name="email" type="email" maxLength={200} required placeholder="john@example.com" style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md, 6px)', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'var(--color-text, #fff)' }} />
             </div>
             <div>
               <label htmlFor="contact-message" style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>Message</label>
-              <textarea id="contact-message" rows={4} required placeholder="How can we help you?" style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md, 6px)', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'var(--color-text, #fff)' }} />
+              <textarea id="contact-message" name="message" rows={4} maxLength={4000} required placeholder="How can we help you?" style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md, 6px)', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'var(--color-text, #fff)' }} />
             </div>
-            <Button variant="primary" size="lg" type="submit" style={{ width: '100%', marginTop: '0.5rem' }}>
-              {submitLabel}
+            <Button variant="primary" size="lg" type="submit" disabled={submitting} aria-busy={submitting ? 'true' : 'false'} style={{ width: '100%', marginTop: '0.5rem' }}>
+              {submitting ? 'Sending…' : submitLabel}
             </Button>
           </form>
         </Card>

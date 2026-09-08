@@ -454,3 +454,287 @@ class PreviewService(models.AbstractModel):
     @api.model
     def sync_runtime_state(self, runtime):
         self.check_health(runtime)
+
+    # ------------------------------------------------------------------
+    # Phase 47.12 (U9.3): preview runtime integration for generated
+    # managed workspaces.
+    #
+    # The generated project lives directly at the managed workspace path
+    # (generation workspace == build workspace == preview workspace), not in
+    # the IDE ``<root>/workspace`` layout that start_preview() resolves via
+    # workspace_service.get_project_directory(). These methods extend the
+    # canonical preview owner so the generation workflow reuses the SAME
+    # detection / port allocation / launcher dispatch / health / lifecycle
+    # machinery — no second preview service, launcher registry, port manager
+    # or health service is introduced.
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _get_or_create_session_preview_runtime(self, session):
+        """Return the session's preview ``nexora.runtime`` record, creating it
+        through the existing model when absent (one preview runtime per
+        session, enforced by the existing unique constraint)."""
+        runtime = self.env['nexora.runtime'].search([
+            ('builder_session_id', '=', session.id),
+            ('runtime_type', '=', 'preview'),
+        ], limit=1)
+        if not runtime:
+            runtime = self.env['nexora.runtime'].create({
+                'name': f"{session.name} - Preview",
+                'builder_session_id': session.id,
+                'runtime_type': 'preview',
+                'status': 'stopped',
+                'health': 'unknown',
+            })
+        return runtime
+
+    def _preview_workspace_dirs(self, workspace_path):
+        """Preview log/temp directories inside the managed workspace itself.
+        Never outside it, never a translated root."""
+        logs_dir = os.path.join(workspace_path, '.nexora', 'logs')
+        temp_dir = os.path.join(workspace_path, '.nexora', 'temp')
+        os.makedirs(logs_dir, exist_ok=True)
+        os.makedirs(temp_dir, exist_ok=True)
+        return logs_dir, temp_dir
+
+    def _read_preview_log_tail(self, logs_dir, limit=1200):
+        """Return the tail of the most recent preview log for diagnostics."""
+        try:
+            candidates = [os.path.join(logs_dir, f) for f in os.listdir(logs_dir)]
+            candidates = [f for f in candidates if os.path.isfile(f)]
+            if not candidates:
+                return None
+            newest = max(candidates, key=os.path.getmtime)
+            with open(newest, 'r', encoding='utf-8', errors='ignore') as fh:
+                return fh.read()[-limit:]
+        except Exception:
+            return None
+
+    def _wait_preview_ready(self, launcher, preview_rt, url, timeout=30.0):
+        """Wait until the started preview endpoint responds.
+
+        Uses the same endpoint contract as initialize_service() recovery
+        (HTTP status < 500). Fails fast when the launcher process exits.
+        Process creation alone is never treated as preview success.
+        """
+        pid = preview_rt.process_id
+        started = time.time()
+        deadline = started + timeout
+        last_error = None
+        while time.time() < deadline:
+            if pid and pid > 0 and not launcher._is_process_alive(pid):
+                return {
+                    'ready': False,
+                    'error': 'process_exited',
+                    'duration_s': round(time.time() - started, 2),
+                }
+            try:
+                with urllib.request.urlopen(url, timeout=1.0) as resp:
+                    if resp.status < 500:
+                        return {
+                            'ready': True,
+                            'http_status': resp.status,
+                            'duration_s': round(time.time() - started, 2),
+                        }
+                    last_error = f'HTTP {resp.status}'
+            except Exception as e:
+                last_error = str(e)
+            time.sleep(0.25)
+        return {
+            'ready': False,
+            'error': 'startup_timeout',
+            'detail': last_error,
+            'duration_s': round(time.time() - started, 2),
+        }
+
+    @api.model
+    def start_workspace_preview(self, session, workspace_path, startup_timeout=30.0):
+        """Phase 47.12 (U9.3): start the development preview for a generated
+        managed workspace.
+
+        Canonical path: sandbox boundary check -> launcher detection ->
+        existing port allocation -> launcher validation -> launcher start ->
+        startup wait (HTTP contract) -> existing check_health(). The preview
+        cwd is the actual managed generated workspace (no translation, no
+        temporary copy). Returns a truthful structured result; a failure is
+        never converted into success and always attempts process cleanup.
+        """
+        result = {
+            'status': 'failed',
+            'launcher': None,
+            'workspace': workspace_path,
+            'host': '127.0.0.1',
+            'port': None,
+            'url': None,
+            'pid': None,
+            'health': None,
+            'diagnostics': None,
+            'error': None,
+        }
+        self._ensure_initialized()
+
+        sandbox = self.env['nexora.execution_sandbox_service']
+        if not workspace_path or not sandbox.is_within_allowed_roots(workspace_path):
+            result['error'] = 'workspace_not_allowed'
+            result['diagnostics'] = (
+                f'Preview workspace is outside the managed execution roots: {workspace_path}'
+            )
+            return result
+        if not os.path.isdir(workspace_path):
+            result['error'] = 'workspace_missing'
+            result['diagnostics'] = f'Preview workspace does not exist: {workspace_path}'
+            return result
+
+        runtime = self._get_or_create_session_preview_runtime(session)
+        preview_rt = self._get_or_create_preview_runtime(runtime)
+
+        # Reuse an already-running healthy preview for this session instead of
+        # double-starting (idempotent pipeline retries).
+        if runtime.status == 'running' and preview_rt.process_id and preview_rt.process_id > 0:
+            try:
+                current_launcher = self.resolve_launcher(preview_rt.launcher_type)
+            except Exception:
+                current_launcher = None
+            if current_launcher is not None and current_launcher._is_process_alive(preview_rt.process_id):
+                health = self.check_health(runtime)
+                if health == 'healthy':
+                    result.update({
+                        'status': 'healthy',
+                        'launcher': preview_rt.launcher_type,
+                        'port': preview_rt.allocated_port,
+                        'url': preview_rt.preview_url,
+                        'pid': preview_rt.process_id,
+                        'health': health,
+                        'diagnostics': 'reused_running_preview',
+                    })
+                    return result
+
+        launcher = self.detect_launcher(workspace_path)
+        manifest = launcher.launcher_manifest()
+        launcher_id = manifest.get('launcher_id') or manifest.get('launcher_type') or 'python_http'
+        if preview_rt.launcher_type != launcher_id:
+            preview_rt.launcher_type = launcher_id
+        result['launcher'] = launcher_id
+
+        # Port selection through the existing allocator. A stale allocation is
+        # kept only while the port is still free; otherwise the existing
+        # mechanism picks the next valid port (never kills the occupant).
+        port = preview_rt.allocated_port or 0
+        if port > 0:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+                    probe.bind(("127.0.0.1", port))
+            except OSError:
+                port = 0
+        if not port:
+            port = self.allocate_port()
+        preview_rt.allocated_port = port
+        result['port'] = port
+
+        val_res = launcher.validate(workspace_path)
+        if not val_res.get('valid'):
+            preview_rt.allocated_port = 0
+            result['error'] = 'launcher_unavailable'
+            result['diagnostics'] = '; '.join(val_res.get('errors') or [])
+            runtime.write({'status': 'error', 'health': 'critical',
+                           'last_activity': fields.Datetime.now()})
+            return result
+
+        logs_dir, temp_dir = self._preview_workspace_dirs(workspace_path)
+        runtime.status = 'starting'
+        try:
+            pid, cmd, url = launcher.start(
+                workspace_path, port, preview_rt,
+                logs_directory=logs_dir, temp_directory=temp_dir,
+            )
+        except Exception as e:
+            preview_rt.allocated_port = 0
+            now = fields.Datetime.now()
+            runtime.write({'status': 'error', 'health': 'critical',
+                           'stopped_at': now, 'last_activity': now})
+            result['error'] = 'startup_failed'
+            result['diagnostics'] = str(e)
+            return result
+
+        now = fields.Datetime.now()
+        preview_rt.write({
+            'process_id': pid,
+            'preview_command': cmd,
+            'preview_url': url,
+            'started_at': now,
+            'last_activity': now,
+            'last_health_check': now,
+        })
+        runtime.write({
+            'endpoint': url,
+            'port': port,
+            'process_id': pid,
+            'started_at': now,
+            'last_activity': now,
+        })
+        result['pid'] = pid
+        result['url'] = url
+
+        wait = self._wait_preview_ready(launcher, preview_rt, url, timeout=startup_timeout)
+        if not wait.get('ready'):
+            # Startup/health failure: clean up the owned process tree through
+            # the launcher (U9.2 tree-kill), release the port, record truth.
+            try:
+                launcher.stop(preview_rt)
+            except Exception as e:
+                _logger.warning(f"Preview cleanup after failed startup raised: {e}")
+            self.release_port(runtime)
+            now = fields.Datetime.now()
+            preview_rt.write({
+                'process_id': 0,
+                'preview_url': '',
+                'stopped_at': now,
+                'last_activity': now,
+            })
+            runtime.write({
+                'status': 'error',
+                'health': 'critical',
+                'endpoint': '',
+                'process_id': 0,
+                'stopped_at': now,
+                'last_activity': now,
+            })
+            result['pid'] = None
+            result['url'] = None
+            result['port'] = None
+            result['error'] = wait.get('error') or 'startup_failed'
+            result['diagnostics'] = (
+                self._read_preview_log_tail(logs_dir)
+                or wait.get('detail')
+                or 'Preview process did not become healthy.'
+            )
+            return result
+
+        health = self.check_health(runtime)
+        runtime.write({'status': 'running', 'health': health})
+        if health != 'healthy':
+            result['status'] = 'failed'
+            result['health'] = health
+            result['error'] = 'health_check_failed'
+            result['diagnostics'] = wait
+            return result
+        result.update({
+            'status': 'healthy',
+            'health': health,
+            'diagnostics': wait,
+        })
+        return result
+
+    @api.model
+    def stop_workspace_preview(self, session):
+        """Phase 47.12 (U9.3): stop the session's preview through the existing
+        stop_preview() path (launcher tree-kill, port release, state clear).
+        Idempotent and safe when no preview exists."""
+        runtime = self.env['nexora.runtime'].search([
+            ('builder_session_id', '=', session.id),
+            ('runtime_type', '=', 'preview'),
+        ], limit=1)
+        if not runtime:
+            return {'stopped': False, 'reason': 'no_preview_runtime'}
+        self.stop_preview(runtime)
+        return {'stopped': True, 'status': runtime.status, 'health': runtime.health}

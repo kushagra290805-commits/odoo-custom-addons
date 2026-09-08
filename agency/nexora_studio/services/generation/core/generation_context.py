@@ -17,11 +17,13 @@ class GenerationState(Enum):
     TEMPLATE_RESOLVED = "TEMPLATE_RESOLVED"
     DESIGN_ORCHESTRATED = "DESIGN_ORCHESTRATED"
     ASSETS_GENERATED = "ASSETS_GENERATED"
+    CONTENT_GENERATED = "CONTENT_GENERATED"
     WORKSPACE_PREPARED = "WORKSPACE_PREPARED"
     CODE_GENERATION_COMPLETED = "CODE_GENERATION_COMPLETED"
     REVIEW_COMPLETED = "REVIEW_COMPLETED"
     VALIDATION_COMPLETED = "VALIDATION_COMPLETED"
     PREVIEW_READY = "PREVIEW_READY"
+    BROWSER_VALIDATED = "BROWSER_VALIDATED"
     DEPLOYMENT_READY = "DEPLOYMENT_READY"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
@@ -32,11 +34,26 @@ class RequirementModel:
     raw_input: str = ""
     domain: str = ""
     target_audience: str = ""
+    # Phase 47.18 (Part A): brief-extracted business identity. Extracted by
+    # the existing RequirementAnalyzer from labeled brief lines and mapped by
+    # the existing RequirementEngine — no second requirements model. Empty
+    # values simply mean the brief did not state them.
+    business_name: str = ""
+    business_category: str = ""
+    location: str = ""
+    # Phase 47.19 (Part D): brief declares a responsive/mobile expectation —
+    # activates the bounded mobile viewport validation in the existing
+    # browser phase. Deterministic and default-False (desktop-only).
+    mobile_expected: bool = False
     goals: List[str] = field(default_factory=list)
     features: List[str] = field(default_factory=list)
     branding: Dict[str, Any] = field(default_factory=dict)
     seo: Dict[str, Any] = field(default_factory=dict)
     accessibility: Dict[str, Any] = field(default_factory=dict)
+    # Phase 47.32 (ADR-0083): project capabilities inferred from the brief.
+    # backend_required is a platform-owned decision (deterministic policy).
+    capabilities: List[str] = field(default_factory=list)
+    backend_required: bool = False
 
 
 
@@ -62,6 +79,11 @@ class Theme:
     radius: str = ""
     shadows: str = ""
     motion: Dict[str, Any] = field(default_factory=dict)
+    # Phase 47.23 (ADR-0075): the theme's selected webfonts. Materialized
+    # deterministically by the rendering provider (Google Fonts link + CSS
+    # custom properties) — the canonical theme font contract.
+    font_heading: str = "Inter"
+    font_body: str = "Inter"
 
 @dataclass(frozen=True)
 class Assets:
@@ -80,6 +102,19 @@ class ValidationReport:
     seo_score: int = 0
     performance_score: int = 0
     issues: List[Dict[str, Any]] = field(default_factory=list)
+    # Phase 47.12 (U9.3): truthful build-acceptance evidence from the
+    # validation stage (install / production build / build output). Downstream
+    # preview acceptance gates on this, never on unrelated validation issues.
+    build_acceptance: Dict[str, Any] = field(default_factory=dict)
+    # Phase 47.13 (U9.4): truthful browser-validation evidence from the
+    # post-preview validation pass (navigation / console / network / routes)
+    # produced by the canonical nexora.provider.playwright owner.
+    browser_validation: Dict[str, Any] = field(default_factory=dict)
+    # Phase 47.15 (U9.6): ONE deterministic final acceptance decision
+    # (accepted / failed) aggregated by the SAME ValidationEngine from the
+    # existing build / preview / browser / renderer evidence. No second
+    # report model and no separate acceptance owner.
+    final_acceptance: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass(frozen=True)
 class PreviewArtifacts:

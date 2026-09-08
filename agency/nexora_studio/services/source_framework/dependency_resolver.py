@@ -4,5 +4,6 @@ from .domain_models import ComponentPackage
 
 class DependencyResolver:
     def resolve_graph(self, component: ComponentPackage) -> ComponentPackage:
-        component.dependencies.append({"resolved": True})
+        # Dependency acquisition is source-owned. Preserve factual package
+        # dependencies; do not append synthetic entries during federation.
         return component

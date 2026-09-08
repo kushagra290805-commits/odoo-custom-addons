@@ -2,6 +2,7 @@
 import json
 from odoo import http
 from odoo.http import request
+from odoo.exceptions import ValidationError
 
 class AIAPI(http.Controller):
 
@@ -53,15 +54,35 @@ class AIAPI(http.Controller):
             session_id = payload.get('builder_session_id')
             if not session_id:
                 return self._error_response(400, "Missing builder_session_id")
-                
+
             context = {}
             if payload.get('use_test_provider'):
                 context['NEXORA_TEST_PROVIDER'] = 'test'
-                
-            res = request.env['nexora.project_planner_service'].with_context(**context).start_planning(int(session_id), {})
-            if res.get('status') == 'error':
-                return self._error_response(500, res.get('error'))
-            return self._success_response({'message': 'Generation triggered successfully', 'job_uuid': res.get('job_uuid')})
+
+            session = request.env['nexora.builder_session'].browse(int(session_id)).exists()
+            if not session:
+                return self._error_response(404, "Builder session not found")
+
+            requirements = payload.get('requirements')
+            if requirements is None:
+                requirements = payload.get('prompt')
+            if requirements is None:
+                requirements = payload.get('raw_requirements')
+
+            request.env['nexora.builder_session_service'].with_context(
+                **context
+            ).run_generation(
+                session,
+                mode=payload.get('mode', 'FULL'),
+                targets=payload.get('targets'),
+                requirements=requirements,
+            )
+            return self._success_response({
+                'message': 'Website generation completed synchronously.',
+                'status': session.status,
+            })
+        except ValidationError as e:
+            return self._error_response(409, str(e))
         except Exception as e:
             return self._error_response(500, str(e))
 

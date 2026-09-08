@@ -47,6 +47,23 @@ from . import test_provider_interface
 from . import test_render_model_validation
 from . import test_interaction_translation
 from . import test_phase44_2_hardening
+from . import test_phase47_2_workflow_closure
+from . import test_phase47_2_lifecycle
+from . import test_phase47_3_runtime_contract
+from . import test_phase47_3_runtime_odoo
+from . import test_phase47_4_state_integrity
+from . import test_phase47_4_progress_odoo
+from . import test_phase47_5_pipeline_output
+from . import test_phase47_5_pipeline_behavior
+from . import test_phase47_6_csf_operations
+from . import test_phase47_7_artifact_consumers
+
+# --- PHASE 47.3x (client backend chain; TransactionCase) ----------------------
+from . import test_phase47_33_client_lifecycle
+from . import test_phase47_34_module_provisioning
+from . import test_phase47_34x_safety_hardening
+from . import test_phase47_35_client_api
+from . import test_phase47_35x_security_invariants
 
 # --- INTEGRATION (TransactionCase; require the Odoo test DB) -----------------
 from . import test_unified_provider_platform

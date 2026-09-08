@@ -1,7 +1,6 @@
 import logging
 from odoo.addons.nexora_studio.services.generation.engines.base_engine import BaseGenerationEngine, EngineExecutionResult
 from odoo.addons.nexora_studio.services.generation.core.generation_context import WebsiteGenerationArtifact
-from odoo.addons.nexora_studio.services.source_framework.component_ranking_pipeline import ComponentRankingPipeline
 
 _logger = logging.getLogger(__name__)
 
@@ -15,15 +14,14 @@ class ComponentRankingEngine(BaseGenerationEngine):
         
         candidates = artifact.generation_metadata.get("candidate_components", [])
         
-        # CapabilityCompositionEngine already handles ranking intrinsically via confidence weights.
-        # We simulate the delegation here to comply with ADR-0052.
-        from odoo.addons.nexora_studio.services.planning.composition.engine import CapabilityCompositionEngine
-        
-        ranked_candidates = candidates # ranking is now intrinsically handled by the planner graph
-        
+        # SearchEngine already applied the sole ComponentRankingPipeline
+        # decision. This state preserves that ranked envelope unchanged.
         return EngineExecutionResult(
             success=True,
             artifact=artifact,
-            metadata={"ranked_components": ranked_candidates, "ranking_status": "delegated_to_composition_engine"},
+            metadata={
+                "ranked_components": candidates,
+                "ranking_status": "ranked_by_search_engine",
+            },
             error=None
         )

@@ -232,6 +232,15 @@ class AIProviderManager(models.AbstractModel):
                 # Normalize keys for backward compatibility
                 result.setdefault('patch_diff', result.get('response', ''))
                 result.setdefault('affected_files', '')
+                # Phase 47.20B: engine-boundary normalization. Generation
+                # engines consume the legacy contract keys ('full_content'
+                # for ai_code_patch, 'analysis' for generate_content) which
+                # the adapter layer does not set. Derive them from the
+                # canonical 'response' so REAL provider output reaches the
+                # pipeline; test/mocked returns that already carry these keys
+                # are preserved untouched.
+                result.setdefault('full_content', result.get('response', ''))
+                result.setdefault('analysis', result.get('response', ''))
                 return result
                 
             except RateLimitException:

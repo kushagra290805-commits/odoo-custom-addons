@@ -232,6 +232,30 @@ class RenderingProviderRegistry:
         cls._initialize_defaults()
         return provider_id.lower().strip() in cls._metadata_stubs
 
+    # Phase 47.9 (U8): authoritative renderer-selection contract.
+    # RenderingBlueprint.strategy -> rendering provider identifier.
+    #   webgl / immersive  -> react_three_fiber (qualified WebGL/R3F requirement)
+    #   spline             -> spline            (explicit Spline requirement only)
+    #   none / css_3d / canvas / anything else -> react (ordinary React website)
+    # css_3d and canvas are CSS-transform / 2D-canvas techniques satisfied by the
+    # standard React provider. Spline is never inferred from visual complexity and
+    # R3F is never selected merely because a component carries 3D metadata.
+    _STRATEGY_PROVIDER_MAP = {
+        "webgl": "react_three_fiber",
+        "immersive": "react_three_fiber",
+        "spline": "spline",
+    }
+
+    @classmethod
+    def resolve_provider_id(cls, strategy: Optional[str]) -> str:
+        """
+        Deterministically resolve the rendering provider identifier for a
+        RenderingBlueprint strategy value. Unknown or absent strategies fall
+        back to the standard React provider.
+        """
+        normalized = (strategy or "none").lower().strip()
+        return cls._STRATEGY_PROVIDER_MAP.get(normalized, "react")
+
     @classmethod
     def get_capabilities(cls, provider_id: str) -> ProviderCapabilityModel:
         """

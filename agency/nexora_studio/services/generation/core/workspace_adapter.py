@@ -37,6 +37,20 @@ class WorkspaceAdapter:
         if self._hooks:
             self._hooks.after_workspace_write(path)
 
+    def write_binary(self, path: str, data: bytes) -> None:
+        """Phase 47.24 (ADR-0076): binary asset materialization (stock
+        photos). Same sandbox containment contract as write_file."""
+        if self._hooks:
+            self._hooks.before_workspace_write(path, '<binary:%d bytes>' % len(data))
+
+        target = self._resolve(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, 'wb') as f:
+            f.write(data)
+
+        if self._hooks:
+            self._hooks.after_workspace_write(path)
+
     def exists(self, path: str) -> bool:
         return self._resolve(path).exists()
 

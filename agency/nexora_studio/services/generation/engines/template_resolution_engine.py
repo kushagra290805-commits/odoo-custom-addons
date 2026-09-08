@@ -10,7 +10,7 @@ class TemplateResolutionEngine(BaseGenerationEngine):
     def execute(self, artifact: WebsiteGenerationArtifact, runtime: 'GenerationRuntime') -> EngineExecutionResult:
         _logger.info("Executing TemplateResolutionEngine...")
         
-        env = self.orchestrator.env
+        env = runtime.env
         
         template_record = env['nexora.template_frontend'].search([('active', '=', True)], limit=1)
         

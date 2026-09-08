@@ -37,36 +37,7 @@ class PlanningEngine(BaseGenerationEngine):
             plan = planner.plan(objective)
             plan = optimizer.optimize(plan)
 
-            # Execute the plan using PlanOrchestrator
-            from odoo.addons.nexora_studio.services.planning.orchestrator import PlanOrchestrator
-            from odoo.addons.nexora_studio.services.capabilities.selection_engine import CapabilitySelectionEngine
-            from odoo.addons.nexora_studio.services.capabilities.resolver import CapabilityResolver
-            from odoo.addons.nexora_studio.services.capabilities.repository import CapabilityRepository
-            from odoo.addons.nexora_studio.services.capabilities.router import UniversalCapabilityRouter
-            from odoo.addons.nexora_studio.services.capabilities.policy import CapabilityPolicyEngine
-            from odoo.addons.nexora_studio.services.capabilities.security import SecurityLayer
-            from odoo.addons.nexora_studio.services.capabilities.middleware import MiddlewarePipeline
-            from odoo.addons.nexora_studio.services.capabilities.scheduler import ExecutionScheduler
-            from odoo.addons.nexora_studio.services.capabilities.strategy import ExecutionStrategy
-            from odoo.addons.nexora_studio.services.capabilities.executors.local import LocalToolExecutor
-            from odoo.addons.nexora_studio.services.capabilities.models import ExecutionTargetType
-
-            env = runtime.orchestrator.env if hasattr(runtime, 'orchestrator') else None
-            repo = CapabilityRepository(env)
-            resolver = CapabilityResolver(repo)
-
-            class ToolRegistryWrapper:
-                def __init__(self, e): self.env = e
-                def resolve_tool(self, tool_id): return None
-
-            tool_registry = ToolRegistryWrapper(env)
-            executors = {ExecutionTargetType.LOCAL: LocalToolExecutor(tool_registry)}
-
-            router = UniversalCapabilityRouter(resolver, CapabilityPolicyEngine(), SecurityLayer(), MiddlewarePipeline(), ExecutionScheduler(ExecutionStrategy()), executors)
-            cse = CapabilitySelectionEngine(resolver, router)
-            orchestrator = PlanOrchestrator(cse)
-
-            trace = orchestrator.execute_plan(plan)
+            trace = runtime.orchestrator.execute_prepared_plan(plan)
 
             metadata = {
                 "execution_plan": plan.graph.dict() if hasattr(plan.graph, 'dict') else {},
@@ -100,10 +71,56 @@ class PlanningEngine(BaseGenerationEngine):
         if domain == "SaaS":
             modular_blueprint.layout.strategy = "Sidebar"
 
+        # Phase 47.24 (ADR-0076): deterministic page-pattern selection. The
+        # pattern is composition metadata (section sequence + reason),
+        # selected from the domain/brief — no LLM call. ArchitectureEngine
+        # derives page sections from it; the section builders themselves are
+        # owned by CodeGenerationEngine.
+        from odoo.addons.nexora_studio.services.design.page_patterns import select_pattern
+        req = artifact.requirements
+        brief_text = ' '.join(filter(None, [
+            str(getattr(req, 'business_category', '') or ''),
+            (req.branding or {}).get('business_category', ''),
+            req.raw_input or '',
+        ]))
+        pattern = select_pattern(domain, brief_text)
+
+        # Pattern semantics override the abstract component families so
+        # ComponentIntelligenceEngine matches source-backed candidates
+        # against the REAL section semantics the pages will render (same
+        # override precedent as layout.hierarchy above).
+        semantic_for = {
+            'Hero': 'hero_section',
+            'Content': 'content_section',
+            'About': 'about_section',
+            'ServicesGrid': 'services_grid',
+            'FeatureGrid': 'feature_grid',
+            'MenuHighlights': 'menu_highlights',
+            'Pricing': 'pricing',
+            'FAQ': 'faq',
+            'Testimonial': 'testimonial_section',
+            'ContactCTA': 'contact_cta',
+            'Gallery': 'gallery',
+        }
+        pattern_semantics = list(dict.fromkeys(
+            semantic_for.get(sec, sec.lower()) for sec in
+            (pattern.get('home_sections') or []) + (pattern.get('secondary_sections') or [])
+        ))
+        if pattern_semantics:
+            modular_blueprint.component.abstract_components = pattern_semantics
+
         import dataclasses
         # Store modular_blueprint in artifact.generation_metadata for downstream Phase B engines
         new_generation_metadata = dict(artifact.generation_metadata)
         new_generation_metadata["modular_blueprint"] = dataclasses.asdict(modular_blueprint) if dataclasses.is_dataclass(modular_blueprint) else {}
+        # Phase 47.24: the selected pattern travels on the artifact for
+        # ArchitectureEngine (sections) and AssetEngine (image intents).
+        new_generation_metadata["page_pattern"] = {
+            'id': pattern.get('id'),
+            'reason': pattern.get('reason'),
+            'home_sections': pattern.get('home_sections'),
+            'secondary_sections': pattern.get('secondary_sections'),
+        }
 
         # VERY IMPORTANT: Downstream legacy engines have been migrated!
         # We no longer need to generate a mapped legacy blueprint.

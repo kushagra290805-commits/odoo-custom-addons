@@ -120,7 +120,14 @@ class TestReactRenderingProvider(unittest.TestCase):
 
         tokens = self.provider.generate_design_tokens(self.context)
         self.assertIn("src/styles/tokens.css", tokens)
+        # The context supplies its own primary token — emitted verbatim.
         self.assertIn("--color-primary: #3b82f6;", tokens['src/styles/tokens.css'])
+        # Phase 47.23 (ADR-0075): direct (non self-referential) defaults.
+        self.assertIn("--font-body: 'Inter', system-ui, sans-serif;", tokens['src/styles/tokens.css'])
+        self.assertNotIn("--font-body: var(--font-body", tokens['src/styles/tokens.css'])
+        self.assertNotIn("--color-secondary: var(--color-secondary", tokens['src/styles/tokens.css'])
+        self.assertIn("h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading, 'Inter', sans-serif); }",
+                      tokens['src/styles/tokens.css'])
 
     def test_04_validation_contract(self):
         res_manifest = self.provider.validate_manifest(self.context)

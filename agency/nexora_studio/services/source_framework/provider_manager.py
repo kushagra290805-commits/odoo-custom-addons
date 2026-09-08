@@ -18,12 +18,39 @@ class ProviderManager:
     def load_from_registry(self):
         if not self.env:
             return
-            
+
+        # Phase 47.25 (ADR-0077): the native component library is a
+        # code-level built-in resource source — always available through the
+        # same adapter contract as the registry sources (no DB row, no
+        # connector, no lifecycle). Discovery/the source-code gate treat it
+        # exactly like any other source.
+        from .adapters.native_library_adapter import NativeLibraryAdapter
+        self.register_adapter('native_library', NativeLibraryAdapter())
+
         sources = self.env['nexora.source_registry'].search([])
         for source in sources:
+            # Phase 47.24 (ADR-0076): the shadcn / react_bits sources
+            # resolve through the DIRECT public registries (bridged to the
+            # existing provider-platform adapters) instead of the dead MCP
+            # execution path — component selection must not depend on an
+            # MCP connector being enabled. No registry/connector rows
+            # change; only the adapter binding for these existing rows.
+            if source.technical_name == 'shadcn':
+                from .adapters.shadcn_registry_adapter import ShadcnRegistryAdapter
+                self.register_adapter(source.technical_name, ShadcnRegistryAdapter())
+                continue
+            if source.technical_name == 'react_bits':
+                from .adapters.react_bits_registry_adapter import ReactBitsRegistryAdapter
+                self.register_adapter(source.technical_name, ReactBitsRegistryAdapter())
+                continue
             if source.is_mcp and source.connector_id:
                 from .adapters.mcp_source_adapter import McpSourceAdapter
-                adapter = McpSourceAdapter(connector_id=source.connector_id.id, env=self.env)
+                # Phase 45 (ADR-0072): pass the exact registry row — several
+                # sources may share one connector, each with its own
+                # capability_map/qualification configuration.
+                adapter = McpSourceAdapter(
+                    connector_id=source.connector_id.id, env=self.env,
+                    source_row=source)
                 self.register_adapter(source.technical_name, adapter)
             else:
                 # Load existing non-MCP adapters

@@ -98,7 +98,15 @@ class ConnectorExecutionTarget(ExecutionTarget):
 
     def _build_request(self, payload: dict) -> ConnectorExecutionRequest:
         """Build a ConnectorExecutionRequest from a UCEL payload dict."""
-        namespace = payload.get("namespace", payload.get("capability_namespace", ""))
+        # Phase 45 / ADR-0072: the router delivers the namespace as
+        # ``payload["tool_id"]`` (router.py injects it before execution);
+        # honor that contract alongside the legacy keys.
+        namespace = (
+            payload.get("namespace")
+            or payload.get("capability_namespace")
+            or payload.get("tool_id")
+            or ""
+        )
         inputs = payload.get("inputs", payload.get("payload", {}))
         context_data = payload.get("context", {})
         correlation_id = payload.get("correlation_id", str(uuid.uuid4()))

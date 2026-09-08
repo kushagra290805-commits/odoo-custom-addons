@@ -161,6 +161,58 @@ class ViteLauncher(models.AbstractModel):
         except Exception:
             return False
 
+    @api.model
+    def _kill_process_tree(self, pid):
+        """Phase 47.11 (U9.2): terminate a process AND all of its descendants.
+
+        ``npm run dev`` spawns a tree (npm -> node/vite -> node/esbuild service).
+        Killing only the npm parent leaks the node children, which keep the port
+        occupied (U9.1 defect). This reuses the psutil recursive-child-kill
+        pattern already present in the repository (stage_07_runtime_bootstrap),
+        with a taskkill /T fallback. It only touches the tree rooted at ``pid`` —
+        never unrelated processes — and is safe when ``pid`` is already gone.
+        """
+        if not pid or pid <= 0:
+            return True
+        try:
+            import psutil
+            try:
+                parent = psutil.Process(pid)
+            except psutil.NoSuchProcess:
+                parent = None
+            if parent is not None:
+                try:
+                    children = parent.children(recursive=True)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    children = []
+                for child in children:
+                    try:
+                        child.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                try:
+                    parent.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+                try:
+                    psutil.wait_procs(children + ([parent] if parent else []), timeout=5)
+                except Exception:
+                    pass
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        # Fallback: ask the OS to remove the tree (Windows) / signal the parent.
+        try:
+            if os.name == 'nt':
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                os.kill(pid, signal.SIGTERM)
+        except (ProcessLookupError, OSError):
+            pass
+        return True
+
     def _wait_for_port_release(self, port, timeout=5.0):
         if not port or port <= 0:
             return True
@@ -192,35 +244,24 @@ class ViteLauncher(models.AbstractModel):
             if port and port > 0:
                 self._wait_for_port_release(port, timeout=3.0)
             return True
-            
+
+        # Phase 47.11 (U9.2): terminate the COMPLETE process tree (npm parent +
+        # node/esbuild children) so no orphan keeps the port occupied. Idempotent
+        # and safe on repeated calls / failed startups; never kills unrelated
+        # processes.
         if proc:
             try:
                 proc.terminate()
             except OSError:
                 pass
-                
-        try:
-            if os.name == 'nt':
-                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            else:
-                os.kill(pid, signal.SIGTERM)
-        except (ProcessLookupError, OSError):
-            pass
-            
+        self._kill_process_tree(pid)
+
         if proc:
             try:
                 proc.wait(timeout=3.0)
-            except subprocess.TimeoutExpired:
-                try:
-                    proc.kill()
-                    if os.name == 'nt':
-                        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    proc.wait(timeout=3.0)
-                except (subprocess.TimeoutExpired, OSError):
-                    pass
-            except OSError:
+            except (subprocess.TimeoutExpired, OSError):
                 pass
-                
+
         start_time = time.time()
         while time.time() - start_time < 5.0:
             if not self._is_process_alive(pid):
@@ -248,12 +289,16 @@ class ViteLauncher(models.AbstractModel):
         if not pid or pid <= 0 or not self._is_process_alive(pid):
             return 'critical'
             
+        # Phase 47.12 (U9.3): honor the declared 'http_and_socket' health
+        # strategy. A live process whose port is not accepting connections is
+        # starting/degraded ('warning'), not 'healthy' — process creation
+        # alone is never treated as preview health.
         if port > 0:
             try:
                 with socket.create_connection(("127.0.0.1", port), timeout=0.5):
-                    pass
+                    return 'healthy'
             except (socket.timeout, ConnectionRefusedError, OSError):
-                pass
+                return 'warning'
                 
         return 'healthy'
 

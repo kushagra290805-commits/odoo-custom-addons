@@ -7,7 +7,7 @@
         <field name="inherit_id" ref="base.res_config_settings_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//form" position="inside">
-                <app data-string="Nexora Studio" string="Nexora Studio" name="nexora_studio" groups="nexora_studio.group_nexora_administrator">
+                <app data-string="Nexora Studio" string="Nexora Studio" name="nexora_studio" groups="nexora_studio.group_nexora_admin">
                     <block title="General Settings" name="nexora_general_settings">
                         <setting string="Workspace Root Directory" help="The local filesystem directory where all Builder Session workspaces will be created.">
                             <field name="nexora_workspace_root" placeholder="e.g. D:\NexoraStudio\workspaces" style="width: 100%;"/>

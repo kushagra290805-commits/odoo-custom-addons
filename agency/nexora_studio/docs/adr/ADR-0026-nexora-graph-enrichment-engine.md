@@ -3,6 +3,67 @@
 ## Status
 Accepted
 
+> **Phase 47.28A audit note (2026-09-06):** verified from executable code —
+> Graphify and the Graph Enrichment Engine are DEV-TIME architectural
+> governance tooling only. They are invoked exclusively through the manual
+> CLI script `run_graphify.py`, are not imported by any production module
+> (no Odoo manifest/init/view/cron entry, no generation-pipeline import),
+> and perform zero LLM calls (`run_graphify.py` skips semantic extraction).
+> They contribute 0 tokens to every AI request and are causally unrelated
+> to provider admission failures. The production boundary is locked by
+> `tests/test_phase47_28a_graphify_boundary.py`; wiring Graphify into the
+> generation path would require revisiting this ADR.
+> Note: `graphify-out/` artifacts go stale between manual runs — regenerate
+> with `run_graphify.py` before consulting them for governance queries.
+
+> **Phase 47.28B role extension (2026-09-06) — Graphify becomes the
+> OpenCode repository-intelligence layer.**
+> **Problem evidence:** the OpenCode coding agent (GLM 5.3 via AgentRouter)
+> hit `BackendAdmissionRejected: incoming_uncached_tokens=921292` (limit
+> 300000). Measured from the session store: the 3-day session accumulated
+> ~892k tokens of conversation content (58% tool outputs: 194 file reads
+> ~280k tok incl. 50-57KB whole-file re-reads, 30 greps ~70k tok; 24%
+> assistant reasoning; 9% phase prompts) — a full-history re-send on
+> provider-cache expiry/compaction produced the 921k uncached prefill.
+> AgentRouter reports no prompt-cache reads, so every idle gap risks a
+> full re-send. Root cause: session-history accumulation + redundant
+> repository scanning, NOT Nexora generation (largest Nexora request:
+> ~516 input tokens).
+> **Decision:** connect the EXISTING Graphify (no GraphifyV2) to OpenCode
+> through the smallest boundary — `graphify_query.py`, a bounded query
+> CLI invoked via the existing bash tool (no plugin/MCP infrastructure,
+> no provider changes). Contract:
+> * Query-oriented only: `symbol/callers/importers/deps/file/subclasses/
+>   path/status` return file:line slices (~0.1-1.3KB per query); the
+>   graph.json (≥1MB) is NEVER injected into model context; outputs are
+>   capped (--limit 25 lines, --max-chars 4000, 200-char lines).
+> * Freshness is explicit: staleness detection (graph mtime vs newest
+>   source change), coverage drift reporting, "NOT in graph index →
+>   refresh required" answers; `--refresh` rebuilds via run_graphify.py.
+>   A stale graph is loudly reported, never silently trusted.
+> * Honest limits: the file-level import index is partial (the AST
+>   extractor records a subset of import forms); queries say so and
+>   defer to grep for exhaustive search.
+> * Navigation, not truth: the agent must still READ actual source files
+>   for implementation decisions; the graph only reduces WHERE to look.
+> * Security: outputs carry labels/paths/lines only — never file
+>   contents, never secrets.
+> * Hardening: `run_graphify.py` gained an extraction sanity floor
+>   (abort when workers crash partway — observed producing 981 nodes
+>   instead of ~9300) and `force=True` on the full-rebuild write path
+>   (graphify's shrink-refusal #479 otherwise silently keeps a stale
+>   graph when fuzzy dedup trims nodes).
+> * Context discipline lives in `.agents/AGENTS.md` (fresh session per
+>   phase, targeted reads, bounded shell output) — the actual fix for the
+>   921k class, since even perfect navigation cannot prevent
+>   history-driven re-sends.
+> **Boundary invariants (locked by
+> `tests/test_phase47_28a_graphify_boundary.py` and
+> `tests/test_phase47_28b_graphify_query.py`):** Graphify remains
+> developer tooling; the Odoo generation path never imports it; the
+> query tool imports nothing from the generation stack; no second graph
+> engine, no second AI provider path, no context-management framework.
+
 ## Context
 Phase 6B focuses on architectural governance and intelligence. While Graphify successfully extracts standard structural Python edges (AST and imports), it is fundamentally blind to dynamic relationships that form the core of the Nexora Studio framework:
 1. **Odoo ORM relationships** (`self.env['nexora.ai_provider_manager']`)

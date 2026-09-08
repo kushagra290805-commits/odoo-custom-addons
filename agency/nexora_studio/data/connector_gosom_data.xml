@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Gosom Business Intelligence Connector (ADR-0073) -->
+        <record id="connector_gosom_mcp" model="nexora.connector">
+            <field name="name">Gosom Business Intelligence</field>
+            <field name="connector_id">gosom_mcp</field>
+            <field name="connector_type_id" search="[('type_code', '=', 'mcp')]"/>
+            <field name="version">1.0.0</field>
+            <field name="state">registered</field>
+            <field name="description">Gosom google-maps-scraper MCP shim for business location intelligence (Google Maps POI search).</field>
+            <field name="author">Gosom (community)</field>
+            <field name="homepage_url">https://github.com/gosom/google-maps-scraper</field>
+        </record>
+
+        <!-- Gosom MCP Server Configuration (stdio via dev-venv Python) -->
+        <record id="config_gosom_mcp" model="nexora.mcp_server_config">
+            <field name="connector_id" ref="connector_gosom_mcp"/>
+            <field name="transport_type">stdio</field>
+            <field name="command">python</field>
+            <field name="args_json">["D:/ODOO/custom-addons/agency/nexora_studio/mcp_shims/gosom_mcp_server.py"]</field>
+            <field name="env_vars_json"><![CDATA[{"GOSOM_BASE_URL": "http://127.0.0.1:8090", "GOSOM_TIMEOUT_S": "480", "GOSOM_POLL_INTERVAL_S": "5", "GOSOM_MAX_QUERIES": "5", "GOSOM_LANG": "en"}]]></field>
+            <field name="timeout_seconds">60</field>
+            <field name="startup_policy">lazy</field>
+        </record>
+
+        <!-- Phase 46 / ADR-0073: Gosom business-location intelligence source.
+             Declared in THIS file (after the connector record) so the
+             Many2one search resolves on fresh installs — source_registry_data.xml
+             loads earlier in the manifest and cannot see gosom_mcp yet.
+             Single semantic capability (BUSINESS_SEARCH); BusinessData domain
+             model; ordering is tool retrieval order. -->
+        <record id="source_gosom_business" model="nexora.source_registry">
+            <field name="name">Gosom Business Search</field>
+            <field name="technical_name">gosom_business</field>
+            <field name="adapter_class">McpSourceAdapter</field>
+            <field name="connector_id" ref="connector_gosom_mcp"/>
+            <field name="sequence">50</field>
+            <field name="capabilities">BUSINESS_SEARCH</field>
+            <field name="config_json"><![CDATA[{
+    "capability_map": {
+        "business_search": "business_search"
+    }
+}]]></field>
+        </record>
+    </data>
+</odoo>

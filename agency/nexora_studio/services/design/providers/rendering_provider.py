@@ -299,12 +299,20 @@ class RenderingProvider(ABC):
         """
         Unified provider contract bridge. Transforms the input design blueprint or
         planning bundle into an authoritative RenderProject and executes generate_project().
+
+        Phase 47.9 (U8): generation-pipeline kwargs (rendering_strategy,
+        selected_components, spline_scene_url, renderer_assets, ...) are carried
+        into RenderingContext.output_config so providers can consume pipeline
+        metadata without signature expansion. The explicit output_config kwarg
+        takes precedence on key conflicts.
         """
         from ..render_domain import RenderProject
         render_project = RenderProject.from_generation_bundle(blueprint, **kwargs)
+        output_config = {k: v for k, v in kwargs.items() if k != 'output_config'}
+        output_config.update(kwargs.get('output_config') or {})
         context = RenderingContext.from_project(
             render_project=render_project,
-            output_config=kwargs.get('output_config', {}),
+            output_config=output_config,
             feature_flags=kwargs.get('feature_flags', {})
         )
         return self.generate_project(context)

@@ -31,7 +31,10 @@ class TestAIAdapter(models.AbstractModel):
             'supports_catalog_sync': False,
         }
 
-    def is_available(self, provider_input=None):
+    def is_available(self, provider_input=None, credentials=None):
+        # The deterministic test adapter needs no configuration and no
+        # network; it is always executable when asked directly. (CostRouter
+        # only loads it when a registry record exists for it.)
         return True
         
     def run_diagnostics(self, provider_input):

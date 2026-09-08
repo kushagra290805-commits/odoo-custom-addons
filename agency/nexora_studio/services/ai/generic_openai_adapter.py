@@ -29,8 +29,32 @@ class GenericOpenAIAdapter(models.AbstractModel):
             'supports_catalog_sync': True,
         }
 
-    def is_available(self, credentials=None):
-        return False
+    def is_available(self, provider_input=None, credentials=None):
+        """Configuration-sufficiency availability check (NO network probe).
+
+        The CostRouter calls this on every request, so it must stay cheap:
+        a provider is available when its configuration is sufficient for
+        execution — a credential exists and a base URL is resolvable from
+        the explicit configuration or the adapter's own default endpoint.
+
+        Real reachability is verified separately by health_check /
+        run_diagnostics, never here.
+        """
+        if credentials is None and provider_input is None:
+            return False
+        if credentials is None and provider_input is not None:
+            credentials = {
+                'api_key': provider_input.api_key,
+                'base_url': provider_input.base_url,
+            }
+        api_key = (credentials or {}).get('api_key') or ''
+        base_url = (credentials or {}).get('base_url') or ''
+        if not api_key:
+            return False
+        if not base_url:
+            # Fall back to this adapter's legitimate default endpoint.
+            base_url = self.get_provider_metadata().get('default_base_url') or ''
+        return bool(base_url)
 
     def run_diagnostics(self, provider_input):
         """Ping the base_url or /models just for reachability."""

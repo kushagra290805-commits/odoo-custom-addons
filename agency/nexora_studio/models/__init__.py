@@ -39,6 +39,7 @@ from . import provider_cache_blob
 from . import provider_capability_cache
 from . import provider_migration_log
 from . import provider_metrics_aggregation
+from . import client_environment
 
 from . import builder_workspace_version
 from . import builder_execution_plan

@@ -191,3 +191,11 @@ class OrchestratorRuntimeAdapter:
 
         trace = orchestrator.execute_plan(plan)
         return trace
+
+    def execute_prepared_plan(self, plan: Any) -> Any:
+        """Execute an already planned graph through this runtime's router."""
+        from odoo.addons.nexora_studio.services.capabilities.selection_engine import CapabilitySelectionEngine
+        from odoo.addons.nexora_studio.services.planning.orchestrator import PlanOrchestrator
+
+        cse = CapabilitySelectionEngine(self._resolver, self._router)
+        return PlanOrchestrator(cse).execute_plan(plan)

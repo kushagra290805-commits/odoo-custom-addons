@@ -228,8 +228,18 @@ class BaseAIAdapter(models.AbstractModel):
             
         return res
 
-    def is_available(self, provider_input: ProviderInput = None):
-        """Check whether the provider is reachable and configured."""
+    def is_available(self, provider_input: 'ProviderInput' = None, credentials=None):
+        """Canonical availability contract.
+
+        Configuration-sufficiency check ONLY — implementations must NOT
+        perform network probes here (the CostRouter consults availability
+        on every request). ``credentials`` is the dict the
+        AIProviderManager obtains from the provider registry
+        ({'api_key': ..., 'base_url': ...}); ``provider_input`` is the
+        resolved ProviderInput for registry-driven callers. Concrete
+        adapters override this; the base contract simply raises for
+        adapters that have not declared an availability semantics.
+        """
         raise NotImplementedError
 
     def list_models(self, credentials=None):

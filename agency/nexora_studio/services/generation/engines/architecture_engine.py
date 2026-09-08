@@ -43,31 +43,52 @@ class ArchitectureEngine(BaseGenerationEngine):
             # 4. Component Hierarchy (Normalized from flat route hierarchy)
             component_hierarchy = {}
             relationships = []
-            
+
+            # Phase 47.24 (ADR-0076): page sections come from the selected
+            # page pattern (composition metadata selected deterministically
+            # by PlanningEngine). Home page receives the pattern's home
+            # composition; secondary pages the lighter composition. Absent
+            # pattern -> unchanged ['Hero', 'Content'] placeholder.
+            from odoo.addons.nexora_studio.services.design.page_patterns import pattern_sections
+            page_pattern = artifact.generation_metadata.get("page_pattern")
+
             # Root layout wrapper
             component_hierarchy["layout_root"] = {
                 "type": "wrapper",
                 "children": ["site_header", "page_content", "site_footer"]
             }
-            
+
             for path in hierarchy:
                 # Handle layout_root which may be in hierarchy
                 if path == "layout_root": continue
                 page_id = f"page_{path.replace('/', '_').strip('_') or 'home'}"
-                
-                # We no longer rely on legacy content_map. The CodeGenerationEngine 
-                # will use ComponentIntelligence to decide sections. We just scaffold pages.
+
+                sections = pattern_sections(page_pattern, is_home=(path == '/'))
+
+                # Phase 47.36: capability-aware lead binding. When the
+                # Phase 47.32 Project Capability Contract includes 'leads',
+                # the contact page composes the native ContactForm organism
+                # (deterministically bound to POST /api/v1/client/leads by
+                # CodeGenerationEngine). Composition metadata stays
+                # capability-driven and platform-owned — static projects
+                # and other pages are unchanged.
+                capabilities = list(
+                    getattr(artifact.requirements, 'capabilities', None) or [])
+                if (path == '/contact' and 'leads' in capabilities
+                        and 'ContactForm' not in sections):
+                    sections = sections + ['ContactForm']
+
                 component_hierarchy[page_id] = {
                     "type": "page",
                     "path": path,
-                    "sections": ["Hero", "Content"] # Abstract placeholder for file generation planner
+                    "sections": sections
                 }
                 relationships.append({
                     "from": "layout_root",
                     "to": page_id,
                     "type": "contains"
                 })
-                
+
             model = ArchitectureModel(
                 layout_strategy=layout_strategy,
                 responsive_behavior=responsive_behavior,
@@ -75,7 +96,11 @@ class ArchitectureEngine(BaseGenerationEngine):
                 component_hierarchy=component_hierarchy,
                 relationships=relationships
             )
-            return EngineExecutionResult(success=True, artifact=artifact.evolve(architecture=model), metadata={"architecture_normalized": True}, error=None)
+            pattern_meta = {
+                "architecture_normalized": True,
+                "page_pattern": (page_pattern or {}).get("id"),
+            }
+            return EngineExecutionResult(success=True, artifact=artifact.evolve(architecture=model), metadata=pattern_meta, error=None)
             
         except Exception as e:
             _logger.error(f"ArchitectureEngine failed to normalize modular blueprint: {str(e)}", exc_info=True)

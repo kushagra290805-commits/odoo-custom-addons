@@ -67,22 +67,23 @@ class ProviderExecutionPolicy(models.AbstractModel):
         fn should accept (timeout: int) and return the provider's text response and token usage dict.
         """
         provider_key = ctx.provider
-        
+
         if self._is_circuit_open(provider_key):
             _logger.warning("Circuit breaker OPEN for provider: %s", provider_key)
             raise CircuitBreakerOpenException(f"Circuit breaker is open for {provider_key}")
-            
+
         last_error = None
         retries = ctx.retries
         timeout = ctx.timeout
-        
+
         for attempt in range(1, retries + 2):
             start = time.time()
+            retry_delay = None
             try:
                 # Delegate to the adapter logic to make the request
                 result = fn(timeout)
                 self._record_success(provider_key)
-                
+
                 # result is expected to be a dict with 'response' and 'token_usage'
                 return {
                     'response': result.get('response', ''),
@@ -93,43 +94,65 @@ class ProviderExecutionPolicy(models.AbstractModel):
                     'retry_count': attempt - 1,
                     'failure_classification': None
                 }
-                
+
             except requests.exceptions.HTTPError as e:
                 status = e.response.status_code if e.response else 500
                 latency = round(time.time() - start, 3)
-                
+
                 if status in (401, 403, 404):
                     # Fail immediately
                     self._record_failure(provider_key)
                     _logger.error("Execution Policy: %s returned %s. Aborting.", provider_key, status)
                     return self._build_error(e, latency, attempt - 1, status, 'AUTH_OR_CONFIG_ERROR')
-                    
+
                 elif status == 429:
-                    # Rate limit -> Bubble up so CostRouter can fallback
-                    _logger.warning("Execution Policy: %s returned 429 Rate Limit.", provider_key)
-                    raise RateLimitException("Provider rate limit reached.")
-                    
+                    # Phase 47.23 (ADR-0075): transient rate limits get a
+                    # bounded backoff (honoring Retry-After when present,
+                    # capped) before the canonical RateLimitException ->
+                    # CostRouter fallback semantics take over. Bounded by
+                    # ctx.retries — never an infinite retry loop.
+                    last_error = e
+                    _logger.warning(
+                        "Execution Policy: %s returned 429 Rate Limit (attempt %s/%s).",
+                        provider_key, attempt, retries + 1)
+                    if attempt <= retries:
+                        retry_after = None
+                        if e.response is not None:
+                            try:
+                                retry_after = float(e.response.headers.get('Retry-After'))
+                            except (TypeError, ValueError):
+                                retry_after = None
+                        retry_delay = retry_after if retry_after is not None \
+                            else min(2 ** attempt, 10)
+                        retry_delay = max(0.5, min(float(retry_delay), 30.0))
+                        # Fall through to the shared bounded sleep below.
+                    else:
+                        # Exhausted: record once and preserve the legacy
+                        # RateLimitException contract (CostRouter fallback).
+                        self._record_failure(provider_key)
+                        raise RateLimitException("Provider rate limit reached after bounded retries.")
+
                 elif status >= 500:
                     # Server Error -> Exponential backoff
                     last_error = e
                     _logger.warning("Execution Policy: %s returned %s. Retrying...", provider_key, status)
-                    
+
             except requests.exceptions.ReadTimeout as e:
                 # ReadTimeout -> Standard retry + circuit breaker
                 latency = round(time.time() - start, 3)
                 last_error = e
                 self._record_failure(provider_key)
                 _logger.warning("Execution Policy: %s ReadTimeout (timeout=%s). Retrying...", provider_key, timeout)
-                
+
             except Exception as e:
                 # Unknown network failure
                 latency = round(time.time() - start, 3)
                 last_error = e
                 self._record_failure(provider_key)
                 _logger.warning("Execution Policy: %s Unexpected error: %s", provider_key, str(e))
-                
+
             if attempt <= retries:
-                time.sleep(min(2 ** attempt, 10))
+                time.sleep(retry_delay if retry_delay is not None else min(2 ** attempt, 10))
 
         # All retries exhausted
         self._record_failure(provider_key)

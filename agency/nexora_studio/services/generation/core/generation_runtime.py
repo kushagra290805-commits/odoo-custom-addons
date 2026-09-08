@@ -23,7 +23,8 @@ class GenerationRuntime:
                  state_manager: GenerationStateManager,
                  session_id: str,
                  generation_id: str,
-                 initiated_by: str = "system"):
+                 initiated_by: str = "system",
+                 env: Any = None):
                  
         from odoo.addons.nexora_studio.services.generation.core.runtime_hooks import RuntimeHooks
         
@@ -46,14 +47,9 @@ class GenerationRuntime:
         from odoo.addons.nexora_studio.services.capabilities.scheduler import ExecutionScheduler
         from odoo.addons.nexora_studio.services.capabilities.router import UniversalCapabilityRouter
         from odoo.addons.nexora_studio.services.capabilities.executors.local import LocalToolExecutor
-        from odoo.http import request
-        
-        env = None
-        try:
-            env = request.env
-        except:
-            pass
-            
+        # The Odoo environment is an explicit dependency of the generation
+        # runtime. It must not be recovered from HTTP request globals.
+        self.env = env
         self.tool_registry = env['nexora.tool_registry'] if env else None # Local Tool Metadata
         
         self.capability_repository = CapabilityRepository(env=env)
@@ -181,30 +177,36 @@ class GenerationRuntime:
         from odoo.addons.nexora_studio.services.generation.engines.validation_engine import ValidationEngine
         from odoo.addons.nexora_studio.services.generation.engines.optimization_engine import OptimizationEngine
         from odoo.addons.nexora_studio.services.generation.engines.component_discovery_engine import ComponentDiscoveryEngine
+        from odoo.addons.nexora_studio.services.generation.engines.component_ranking_engine import ComponentRankingEngine
+        from odoo.addons.nexora_studio.services.generation.engines.component_intelligence_engine import ComponentIntelligenceEngine
         from odoo.addons.nexora_studio.services.generation.engines.theme_engine import ThemeEngine
+        from odoo.addons.nexora_studio.services.generation.engines.template_resolution_engine import TemplateResolutionEngine
+        from odoo.addons.nexora_studio.services.generation.engines.design_orchestration_engine import DesignOrchestrationEngine
         from odoo.addons.nexora_studio.services.generation.engines.asset_engine import AssetEngine
         from odoo.addons.nexora_studio.services.generation.engines.content_engine import ContentEngine
         from odoo.addons.nexora_studio.services.generation.engines.preview_engine import PreviewEngine
         from odoo.addons.nexora_studio.services.generation.engines.workspace_generator_engine import WorkspaceGeneratorEngine
 
         # Setup according to Phase 18.4.6 requirements
-        self._registry.register(RequirementEngine, {'ai', 'state', 'events'})
-        self._registry.register(BusinessResearchEngine, {'tools', 'state', 'events', 'orchestrator'})
-        self._registry.register(KnowledgeEnrichmentEngine, {'ai', 'state', 'events'})
-        self._registry.register(ReviewEngine, {'tools', 'ai', 'state', 'events'})
-        self._registry.register(PlanningEngine, {'ai', 'state', 'events'})
-        self._registry.register(ArchitectureEngine, {'ai', 'workspace', 'events'})
-        self._registry.register(CodeGenerationEngine, {'ai', 'workspace', 'events'})
-        self._registry.register(ValidationEngine, {'workspace', 'events', 'orchestrator'})
-        self._registry.register(OptimizationEngine, {'workspace', 'telemetry'})
-        
-        # Unspecified but inferred scopes
-        self._registry.register(ComponentDiscoveryEngine, {'ai', 'workspace', 'events'})
-        self._registry.register(ThemeEngine, {'ai', 'workspace', 'events'})
-        self._registry.register(AssetEngine, {'ai', 'workspace', 'events'})
-        self._registry.register(ContentEngine, {'ai', 'workspace', 'events'})
-        self._registry.register(WorkspaceGeneratorEngine, {'workspace', 'events'})
-        self._registry.register(PreviewEngine, {'workspace', 'events'})
+        self._registry.register(RequirementEngine, set())
+        self._registry.register(BusinessResearchEngine, {'orchestrator', 'env'})
+        self._registry.register(KnowledgeEnrichmentEngine, {'ai', 'env'})
+        self._registry.register(ReviewEngine, {'tools'})
+        self._registry.register(PlanningEngine, {'orchestrator'})
+        self._registry.register(ArchitectureEngine, set())
+        self._registry.register(ComponentDiscoveryEngine, {'env'})
+        self._registry.register(ComponentRankingEngine, set())
+        self._registry.register(ComponentIntelligenceEngine, set())
+        self._registry.register(ThemeEngine, set())
+        self._registry.register(TemplateResolutionEngine, {'env'})
+        self._registry.register(DesignOrchestrationEngine, {'env'})
+        self._registry.register(AssetEngine, {'env'})
+        self._registry.register(ContentEngine, {'ai'})
+        self._registry.register(WorkspaceGeneratorEngine, {'workspace', 'metadata'})
+        self._registry.register(CodeGenerationEngine, {'ai', 'workspace', 'tools'})
+        self._registry.register(ValidationEngine, {'env', 'orchestrator'})
+        self._registry.register(PreviewEngine, {'env'})
+        self._registry.register(OptimizationEngine, set())
 
         # Agent registrations
         from odoo.addons.nexora_studio.services.generation.agents.review_agent import ReviewAgent

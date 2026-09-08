@@ -45,6 +45,62 @@ _TRANSITIONS = {
 }
 
 
+def _composition_summary(metadata):
+    """Phase 47.29: concise operator-facing composition summary built from
+    the generation pipeline's EXISTING result metadata (the 47.26+
+    composition manifest, deterministic percentages, fallback and asset
+    evidence). Pure function over dicts; bounded; returns a short
+    human-readable text surfaced through the EXISTING runtime-event
+    timeline (no new model, no schema change)."""
+    try:
+        manifest = (metadata or {}).get('composition_manifest') or {}
+        lines = []
+        pattern = manifest.get('pattern')
+        if pattern:
+            lines.append('Page pattern: %s' % pattern)
+        for path, sections in sorted((manifest.get('pages') or {}).items()):
+            if not isinstance(sections, list):
+                continue
+            parts = []
+            for rec in sections[:12]:
+                if not isinstance(rec, dict):
+                    continue
+                mode = rec.get('mode') or '?'
+                comp = rec.get('component') or rec.get('type') or ''
+                parts.append('%s(%s)' % (comp, mode))
+            lines.append('%s: %s' % (path or '/', ', '.join(parts) or '(none)'))
+        pct = (metadata or {}).get('deterministic_composition_pct')
+        if pct is not None:
+            lines.append('Deterministic composition: %s%%' % pct)
+        for mode in ('llm', 'hybrid', 'fallback'):
+            value = (metadata or {}).get('%s_composition_pct' % mode)
+            if value is not None:
+                lines.append('%s composition: %s%%' % (mode.capitalize(), value))
+        fallback_count = (metadata or {}).get('code_fallback_count')
+        if fallback_count:
+            lines.append('Section fallbacks: %s' % fallback_count)
+        skipped = (metadata or {}).get('skipped_sections')
+        if skipped:
+            lines.append('Skipped sections: %s' % ', '.join(map(str, skipped[:6])))
+        stock_photos = (metadata or {}).get('stock_images') or {}
+        photos = stock_photos.get('photos') if isinstance(stock_photos, dict) else None
+        if photos:
+            roles = sorted({str(p.get('role')) for p in photos
+                            if isinstance(p, dict)})
+            lines.append('Stock imagery: %s photo(s) across %s' % (
+                len(photos), ', '.join(roles)))
+        content_fallback = (metadata or {}).get('content_fallback_reason')
+        if content_fallback:
+            lines.append('Content fallback: %s' % content_fallback)
+        structured = (metadata or {}).get('content_structured_items')
+        if structured:
+            lines.append('Structured content items: %s' % structured)
+        text = '\n'.join(lines)
+        return text[:4000] if text else 'Generation completed.'
+    except Exception:
+        return 'Generation completed.'
+
+
 class BuilderSessionService(models.AbstractModel):
     _name = 'nexora.builder_session_service'
     _description = 'Builder Session Orchestrator'
@@ -120,6 +176,41 @@ class BuilderSessionService(models.AbstractModel):
             session, RuntimeEvents.WORKSPACE_CREATED,
             f'Workspace created: {workspace.workspace_path}',
         )
+        return workspace
+
+    @api.model
+    def _lock_generation_session(self, session):
+        """Acquire the existing session row before starting synchronous generation."""
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute(
+                    'SELECT id FROM nexora_builder_session WHERE id = %s FOR UPDATE NOWAIT',
+                    (session.id,),
+                )
+        except Exception as exc:
+            raise ValidationError(_(
+                'Generation is already running for this session.'
+            )) from exc
+
+        locked_session = self.env['nexora.builder_session'].browse(session.id)
+        locked_session.invalidate_recordset()
+        if locked_session.status in ('preparing', 'generating', 'ai_reviewing'):
+            raise ValidationError(_('Generation is already running for this session.'))
+        return locked_session
+
+    @api.model
+    def _ensure_generation_workspace(self, session):
+        """Create or validate the session-owned workspace before coordinator startup."""
+        workspace = session.workspace_id
+        if not workspace:
+            workspace = self.create_workspace(session)
+        elif not workspace.workspace_path or not os.path.isdir(workspace.workspace_path):
+            workspace.action_initialize_workspace()
+        else:
+            self.open_workspace(session)
+
+        if not workspace.workspace_path or not os.path.isdir(workspace.workspace_path):
+            raise ValidationError(_('Session workspace is not a valid managed directory.'))
         return workspace
 
     @api.model
@@ -479,13 +570,23 @@ class BuilderSessionService(models.AbstractModel):
     # =================================================================
 
     @api.model
-    def run_generation(self, session, mode='FULL', targets=None):
+    def run_generation(self, session, mode='FULL', targets=None, requirements=None):
         """
         Execute the generation pipeline through the GenerationCoordinator and WebsiteGenerationPipeline.
         """
-        self.transition_state(session, 'generating', 'Generation pipeline started.')
-        session.generation_attempts += 1
-        session.last_generation_at = fields.Datetime.now()
+        session = self._lock_generation_session(session)
+        if session.status == 'draft':
+            self.transition_state(session, 'preparing', 'Preparing the managed workspace.')
+
+        try:
+            self._ensure_generation_workspace(session)
+            self.transition_state(session, 'generating', 'Generation pipeline started.')
+            session.generation_attempts += 1
+            session.last_generation_at = fields.Datetime.now()
+        except Exception as e:
+            if session.status == 'preparing':
+                self.transition_state(session, 'failed', f'Generation preparation failed: {e}')
+            raise
 
         try:
             from odoo.addons.nexora_studio.services.generation.core.generation_coordinator import GenerationCoordinator
@@ -495,15 +596,40 @@ class BuilderSessionService(models.AbstractModel):
             coordinator = GenerationCoordinator(orchestrator)
             
             # Prompt could be taken from session requirements
-            raw_requirements = session.project_name or ""
+            raw_requirements = requirements
+            if raw_requirements is None:
+                raw_requirements = session.project_name or ""
+            if not isinstance(raw_requirements, str):
+                import json
+                raw_requirements = json.dumps(raw_requirements)
             context_id = str(session.session_uuid)
             
             result_context = coordinator.start_generation(raw_requirements, session, context_id)
 
             if result_context and result_context.state.name == "COMPLETED":
                 self.transition_state(session, 'ai_reviewing', 'Generation completed, entering AI review.')
+                # Phase 47.29: surface the EXISTING composition manifest
+                # (pattern, per-section modes, deterministic percentage,
+                # fallback/asset evidence) to the operator through the
+                # EXISTING runtime-event timeline — the session form's
+                # event log. Measurement-only evidence, bounded text,
+                # no new model or schema.
+                try:
+                    self._emit_event(
+                        session, RuntimeEvents.GENERATION_COMPLETED,
+                        _composition_summary(
+                            getattr(result_context, 'metadata', None) or {}))
+                except Exception as emit_error:
+                    _logger.warning(
+                        'Composition summary event failed for session %s: %s',
+                        session.session_uuid, emit_error)
             else:
-                raise Exception(f"Pipeline did not complete successfully. State: {result_context.state.name if result_context else 'None'}")
+                # Preserve original pipeline error if available
+                pipeline_error = result_context.metadata.get('pipeline_error') if result_context and hasattr(result_context, 'metadata') else None
+                error_msg = f"Pipeline did not complete successfully. State: {result_context.state.name if result_context else 'None'}"
+                if pipeline_error:
+                    error_msg += f" | {pipeline_error}"
+                raise Exception(error_msg)
             return True
         except Exception as e:
             _logger.error('Generation failed for session %s: %s', session.session_uuid, e)

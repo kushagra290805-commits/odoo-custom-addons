@@ -17,7 +17,8 @@ class GenerationCoordinator:
     """
     def __init__(self, orchestrator: Any):
         self.orchestrator = orchestrator
-        self.state_manager = GenerationStateManager()
+        env = getattr(orchestrator, 'env', None)
+        self.state_manager = GenerationStateManager(env=env)
         
         # Dependency Injection: Instantiate EventBus and register subscribers here
         from odoo.addons.nexora_studio.services.generation.events.pipeline_event_bus import PipelineEventBus
@@ -33,7 +34,7 @@ class GenerationCoordinator:
         self.event_bus.subscribe(TelemetrySubscriber(), priority=10)
         self.event_bus.subscribe(LoggingSubscriber(), priority=20)
         self.event_bus.subscribe(StreamingSubscriber(), priority=30)
-        self.event_bus.subscribe(ProgressSubscriber(), priority=40)
+        self.event_bus.subscribe(ProgressSubscriber(env=env), priority=40)
         self.event_bus.subscribe(PluginSubscriber(), priority=50)
         self.event_bus.subscribe(DeploymentSubscriber(), priority=60)
         self.event_bus.subscribe(AgentRuntimeSubscriber(), priority=70)
@@ -187,7 +188,12 @@ class GenerationCoordinator:
 
             # 3. Create GenerationRuntime
             from odoo.addons.nexora_studio.services.generation.core.generation_runtime import GenerationRuntime
-            workspace_path = session.workspace_id.workspace_path if hasattr(session, 'workspace_id') and session.workspace_id else "/tmp/fallback"
+            workspace = getattr(session, 'workspace_id', None)
+            workspace_path = getattr(workspace, 'workspace_path', None)
+            if not workspace_path:
+                raise RuntimeError(
+                    'Generation requires a session-owned managed workspace.'
+                )
             
             runtime = GenerationRuntime(
                 ai_provider_manager=self.orchestrator,
@@ -196,7 +202,8 @@ class GenerationCoordinator:
                 state_manager=self.state_manager,
                 session_id=str(getattr(session, 'id', context_id)),
                 generation_id=context_id,
-                initiated_by="system"
+                initiated_by="system",
+                env=getattr(self.orchestrator, 'env', None),
             )
 
             # 4. Delegate to Pipeline
@@ -224,6 +231,8 @@ class GenerationCoordinator:
             ))
             if 'context' in locals() and context:
                 failed_ctx = self.state_manager.cancel(context)
-                return failed_ctx
+                # Attach original error to context metadata for callers
+                failed_ctx = failed_ctx.evolve(metadata={**failed_ctx.metadata, 'pipeline_error': str(e)})
+                # Re-raise to preserve original error propagation
+                raise e
             raise e
-
