@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 nexora_studio test registration.
 
@@ -57,6 +57,7 @@ from . import test_phase47_5_pipeline_output
 from . import test_phase47_5_pipeline_behavior
 from . import test_phase47_6_csf_operations
 from . import test_phase47_7_artifact_consumers
+from . import test_phase48_supervisor_evaluation
 
 # --- PHASE 47.3x (client backend chain; TransactionCase) ----------------------
 from . import test_phase47_33_client_lifecycle

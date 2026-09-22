@@ -151,19 +151,20 @@ class GenerationCoordinator:
 
         return context
 
-    def start_generation(self, raw_requirements: str, session: Any, context_id: str) -> GenerationContext:
-        """Starts or resumes a generation job safely."""
+    def start_generation(self, raw_requirements: str, session: Any, context_id: str, mode: str = 'FULL') -> GenerationContext:
+        """Starts or resumes a generation job safely, implementing Phase 48.2 Supervisor Evaluator role."""
         from odoo.addons.nexora_studio.services.generation.events.events import GenerationStarted, GenerationCompleted, GenerationFailed
+        from odoo.addons.nexora_studio.services.generation.core.generation_context import RequirementModel, SupervisorPrepareContract, SupervisorEvaluateContract, GenerationState
+        from dataclasses import replace
+        
         try:
             # 1. Initialize or Load Context
             context = self.state_manager.load_checkpoint(context_id)
             if not context:
                 _logger.info(f"Coordinator: Creating new generation context for {context_id}")
+                from odoo.addons.nexora_studio.services.generation.core.generation_context import WebsiteGenerationArtifact
                 artifact = WebsiteGenerationArtifact()
                 context = GenerationContext(context_id=context_id, artifact=artifact)
-                # Apply raw requirements
-                from odoo.addons.nexora_studio.services.generation.core.generation_context import RequirementModel
-                from dataclasses import replace
                 new_reqs = replace(context.artifact.requirements, raw_input=raw_requirements)
                 new_artifact = context.artifact.evolve(requirements=new_reqs)
                 context = context.evolve(artifact=new_artifact)
@@ -172,7 +173,6 @@ class GenerationCoordinator:
                 _logger.info(f"Coordinator: Resuming context {context_id}")
 
             # P0-03: Inject planner blueprint if one exists for this session.
-            # Must run after context is initialised (raw_input set) but before pipeline starts.
             context = self._inject_planner_blueprint(context, session)
 
             # Publish GenerationStarted
@@ -183,17 +183,12 @@ class GenerationCoordinator:
                 current_state=context.state.name
             ))
 
-            # 2. Lock Session (Optional depending on concurrency model)
-            # In a robust implementation, this sets a DB lock on the BuilderSession.
-
             # 3. Create GenerationRuntime
             from odoo.addons.nexora_studio.services.generation.core.generation_runtime import GenerationRuntime
             workspace = getattr(session, 'workspace_id', None)
             workspace_path = getattr(workspace, 'workspace_path', None)
             if not workspace_path:
-                raise RuntimeError(
-                    'Generation requires a session-owned managed workspace.'
-                )
+                raise RuntimeError('Generation requires a session-owned managed workspace.')
             
             runtime = GenerationRuntime(
                 ai_provider_manager=self.orchestrator,
@@ -206,10 +201,80 @@ class GenerationCoordinator:
                 env=getattr(self.orchestrator, 'env', None),
             )
 
-            # 4. Delegate to Pipeline
-            completed_context = self.pipeline.run(context, runtime)
+            # PHASE 48.2: EXACT ATTEMPT SEMANTICS
+            MAX_PIPELINE_EXECUTIONS = 1 if mode == 'MANUAL' else 4
             
-            # Publish GenerationCompleted if successful, else it failed during pipeline loop
+            # PHASE 48.2: SUPERVISOR PREPARE
+            # Runs for BOTH initial and manual executions unconditionally.
+            prepare_payload = {
+                "raw_input": context.artifact.requirements.raw_input,
+                "project_context": context.metadata.get("planner_blueprint_status", ""),
+                "mode": mode
+            }
+            try:
+                prepare_resp = runtime.ai.generate("supervisor_prepare", prepare_payload)
+                prepare_contract = SupervisorPrepareContract(**prepare_resp)
+            except Exception as e:
+                _logger.error(f"Supervisor PREPARE failed: {e}")
+                prepare_contract = SupervisorPrepareContract(is_valid=False, rejection_reason=str(e))
+                
+            if not prepare_contract.is_valid:
+                _logger.error(f"Supervisor rejected requirements: {prepare_contract.rejection_reason}")
+                raise RuntimeError(f"Supervisor rejected requirements: {prepare_contract.rejection_reason}")
+                
+            if prepare_contract.instruction:
+                new_req = replace(context.artifact.requirements, current_supervisor_instruction=prepare_contract.instruction)
+                context = context.evolve(artifact=context.artifact.evolve(requirements=new_req))
+
+            completed_context = context
+            
+            # PHASE 48.2: SUPERVISOR EVALUATE LOOP
+            for execution in range(1, MAX_PIPELINE_EXECUTIONS + 1):
+                _logger.info(f"Coordinator Pipeline Execution: {execution} of {MAX_PIPELINE_EXECUTIONS}")
+                
+                # Execute exactly ONE pipeline run
+                completed_context = self.pipeline.run(context, runtime)
+                
+                # If pipeline failed natively, restore checkpoint and stop
+                if completed_context.state.name == "FAILED":
+                    _logger.error("Pipeline failed; restoring last successful checkpoint.")
+                    restored = self.state_manager.rollback(context.context_id)
+                    return restored if restored else completed_context
+                    
+                # Save successful pipeline artifact as the new canonical checkpoint
+                self.state_manager.save_checkpoint(completed_context)
+                
+                # Stop if max executions reached
+                if execution == MAX_PIPELINE_EXECUTIONS:
+                    break
+                    
+                # Evaluate via Supervisor
+                evidence = completed_context.get_supervisor_evidence()
+                try:
+                    eval_resp = runtime.ai.generate("supervisor_evaluate", evidence)
+                    eval_contract = SupervisorEvaluateContract(**eval_resp)
+                except Exception as e:
+                    _logger.error(f"Supervisor EVALUATE failed closed: {e}")
+                    break
+                    
+                if eval_contract.satisfies_requirements:
+                    _logger.info("Supervisor ACCEPTED artifact.")
+                    break
+                    
+                if not eval_contract.improvement_instruction:
+                    _logger.warning("Supervisor requested improvement but provided no instruction.")
+                    break
+                    
+                # Inject instruction for next iteration and reset state to PENDING
+                new_req = replace(completed_context.artifact.requirements, 
+                                  current_supervisor_instruction=eval_contract.improvement_instruction)
+                context = completed_context.evolve(
+                    artifact=completed_context.artifact.evolve(requirements=new_req),
+                    state=GenerationState.PENDING
+                )
+                _logger.info(f"Supervisor injected improvement instruction for execution {execution+1}")
+
+            # Publish final completion event
             if completed_context.state.name == "COMPLETED":
                 self.event_bus.publish(GenerationCompleted(
                     session_id=str(getattr(session, 'id', context_id)),
@@ -231,8 +296,6 @@ class GenerationCoordinator:
             ))
             if 'context' in locals() and context:
                 failed_ctx = self.state_manager.cancel(context)
-                # Attach original error to context metadata for callers
                 failed_ctx = failed_ctx.evolve(metadata={**failed_ctx.metadata, 'pipeline_error': str(e)})
-                # Re-raise to preserve original error propagation
                 raise e
             raise e

@@ -16,6 +16,7 @@ class GenerationState(Enum):
     DESIGN_COMPLETED = "DESIGN_COMPLETED"
     TEMPLATE_RESOLVED = "TEMPLATE_RESOLVED"
     DESIGN_ORCHESTRATED = "DESIGN_ORCHESTRATED"
+
     ASSETS_GENERATED = "ASSETS_GENERATED"
     CONTENT_GENERATED = "CONTENT_GENERATED"
     WORKSPACE_PREPARED = "WORKSPACE_PREPARED"
@@ -32,6 +33,8 @@ class GenerationState(Enum):
 @dataclass(frozen=True)
 class RequirementModel:
     raw_input: str = ""
+    current_supervisor_instruction: str = ""
+
     domain: str = ""
     target_audience: str = ""
     # Phase 47.18 (Part A): brief-extracted business identity. Extracted by
@@ -180,3 +183,31 @@ class GenerationContext:
     
     def evolve(self, **kwargs) -> 'GenerationContext':
         return replace(self, **kwargs)
+
+    def get_supervisor_evidence(self) -> Dict[str, Any]:
+        """Phase 48.2: Deterministic bounded evidence projection for Supervisor EVALUATE.
+        Never exposes the full repository, secrets, or unbounded logs."""
+        return {
+            "composition_manifest": self.metadata.get("composition_manifest", {}),
+            "validation_issues_count": self.metadata.get("validation_issues_count", 0),
+            "build_acceptance": self.metadata.get("build_acceptance", {}),
+            "code_fallbacks": self.metadata.get("code_fallbacks", {}),
+            "requirements": {
+                "business_category": self.artifact.requirements.business_category,
+                "business_name": self.artifact.requirements.business_name,
+                "domain": self.artifact.requirements.domain,
+                "capabilities": self.artifact.requirements.capabilities,
+            }
+        }
+
+@dataclass(frozen=True)
+class SupervisorPrepareContract:
+    is_valid: bool = True
+    instruction: str = ""
+    rejection_reason: str = ""
+
+@dataclass(frozen=True)
+class SupervisorEvaluateContract:
+    satisfies_requirements: bool = False
+    findings: tuple[str, ...] = field(default_factory=tuple)
+    improvement_instruction: str = ""

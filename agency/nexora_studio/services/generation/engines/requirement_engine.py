@@ -14,7 +14,12 @@ class RequirementEngine(BaseGenerationEngine):
         from odoo.addons.nexora_studio.services.design.requirement_analyzer import RequirementAnalyzer
         
         analyzer = RequirementAnalyzer()
-        raw_req = analyzer.analyze(artifact.requirements.raw_input)
+        
+        combined_intent = artifact.requirements.raw_input
+        if artifact.requirements.current_supervisor_instruction:
+            combined_intent += f"\n\n[Supervisor Instruction]: {artifact.requirements.current_supervisor_instruction}"
+            
+        raw_req = analyzer.analyze(combined_intent)
         
         # We temporarily map the RawRequirement (new) back into RequirementModel (legacy)
         # to preserve downstream compatibility until they are fully migrated to blueprint models.
@@ -33,6 +38,10 @@ class RequirementEngine(BaseGenerationEngine):
         business_category = raw_req.preferences.get("business_category", "")
         location = raw_req.preferences.get("location", "")
         services = list(raw_req.preferences.get("services", []))
+        positioning = raw_req.preferences.get("positioning", "")
+        differentiators = raw_req.preferences.get("differentiators", "")
+        visual = raw_req.preferences.get("visual", "")
+        cta = raw_req.preferences.get("cta", "")
 
         branding = dict(existing.branding)
         if business_name:
@@ -43,6 +52,16 @@ class RequirementEngine(BaseGenerationEngine):
             branding.setdefault('location', location)
         if services:
             branding.setdefault('services', services)
+        if positioning:
+            branding.setdefault('positioning', positioning)
+        if differentiators:
+            branding.setdefault('differentiators', differentiators)
+        if visual:
+            # Phase 47.40: bounded brand/style signal for the ThemeEngine
+            # visual-direction policy (labeled brief line only).
+            branding.setdefault('visual', visual)
+        if cta:
+            branding.setdefault('cta', cta)
 
         from odoo.addons.nexora_studio.services.design.capability_policy import (
             infer_capabilities, backend_required
@@ -53,11 +72,12 @@ class RequirementEngine(BaseGenerationEngine):
             services=services,
             features=list(raw_req.preferences.get("features", [])),
             goals=list(raw_req.preferences.get("goals", [])),
-            raw_input=existing.raw_input or raw_req.intent,
+            raw_input=combined_intent,
         )
 
         model = RequirementModel(
-            raw_input=existing.raw_input or raw_req.intent,
+            raw_input=existing.raw_input, # Always strictly immutable original intent
+            current_supervisor_instruction=existing.current_supervisor_instruction,
             domain=existing.domain or domain,
             target_audience=existing.target_audience or audience,
             business_name=existing.business_name or business_name,
