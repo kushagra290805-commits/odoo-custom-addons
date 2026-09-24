@@ -645,37 +645,6 @@ class BuilderSessionService(models.AbstractModel):
         # Assuming GenerationStateManager reads session status or another mechanism interrupts it
         return True
 
-    @api.model
-    def run_ai_review(self, session):
-        """Run the AI review stages via AIReviewFramework."""
-        self._emit_event(session, RuntimeEvents.AI_REVIEW_STARTED, 'AI review pipeline started.')
-
-        from odoo.addons.nexora_studio.services.generation.core.ai_review_framework import AIReviewFramework
-        
-        try:
-            orchestrator = self.env['nexora.ai_provider_manager']
-            review_framework = AIReviewFramework(orchestrator)
-            
-            # Since we just generated code, we would ideally read the workspace or provide context
-            code_payload = "MOCK CODE PAYLOAD FOR REVIEW"
-            
-            # Self Reflection
-            session.current_stage = "AI Self Reflection"
-            reflection = review_framework.perform_self_reflection(code_payload, session)
-            
-            # Bug Fix
-            if reflection and reflection.get('status') == 'success' and reflection.get('issues'):
-                session.current_stage = "AI Automated Bug Fix"
-                review_framework.automated_bug_fix(reflection.get('issues'), code_payload, session)
-                
-            _logger.info('AI review stages completed.')
-        except Exception as e:
-            _logger.error('AI review failed: %s', e)
-            self._emit_event(session, RuntimeEvents.SESSION_ERROR, f'AI review failed: {e}')
-
-        self._emit_event(session, RuntimeEvents.AI_REVIEW_COMPLETED, 'AI review pipeline completed.')
-        self.transition_state(session, 'developer_review', 'AI review completed, awaiting developer review.')
-        return True
 
     @api.model
     def apply_ai_patch(self, session, prompt):

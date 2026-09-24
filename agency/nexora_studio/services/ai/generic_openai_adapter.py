@@ -58,6 +58,9 @@ class GenericOpenAIAdapter(models.AbstractModel):
 
     def run_diagnostics(self, provider_input):
         """Ping the base_url or /models just for reachability."""
+        import time
+        ep = provider_input.base_url.rstrip('/')
+        start = time.time()
         try:
             r = self._http_get(f'{ep}/models', provider_input, timeout=5)
             # Even if it returns 401, the server is reachable
@@ -68,7 +71,6 @@ class GenericOpenAIAdapter(models.AbstractModel):
         except Exception as e:
             if 'Timeout' in str(type(e)):
                 return {'connectivity_state': 'unreachable', 'error': 'Endpoint unreachable or timed out'}
-        except Exception as e:
             return {'connectivity_state': 'unreachable', 'error': str(e)}
 
     def authenticate(self, provider_input):
