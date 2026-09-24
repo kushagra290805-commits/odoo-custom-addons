@@ -5,7 +5,6 @@ from odoo.addons.nexora_studio.services.generation.orchestration.workflow_engine
 from odoo.addons.nexora_studio.services.generation.orchestration.agent_scheduler import AgentScheduler
 from odoo.addons.nexora_studio.services.generation.orchestration.shared_workspace import SharedWorkspace, MessageRouter
 from odoo.addons.nexora_studio.services.generation.orchestration.orchestration_event_bus import OrchestrationEventBus
-from odoo.addons.nexora_studio.services.generation.orchestration.failure_recovery import SupervisorEngine
 from odoo.addons.nexora_studio.services.generation.orchestration.agent_registry import AgentRegistry
 from odoo.addons.nexora_studio.services.generation.orchestration.agent_role_model import NodeType, WorkflowState
 from odoo.addons.nexora_studio.services.generation.core.runtime_interfaces import AgentRuntimeAdapter
@@ -22,7 +21,6 @@ class MultiAgentOrchestrator:
                  workflow_engine: WorkflowEngine, 
                  scheduler: AgentScheduler, 
                  agent_registry: AgentRegistry,
-                 supervisor: SupervisorEngine,
                  event_bus: OrchestrationEventBus,
                  message_router: MessageRouter,
                  agent_runtime_adapter: AgentRuntimeAdapter):
@@ -30,10 +28,10 @@ class MultiAgentOrchestrator:
         self._engine = workflow_engine
         self._scheduler = scheduler
         self._agent_registry = agent_registry
-        self._supervisor = supervisor
         self._bus = event_bus
         self._router = message_router
         self._agent_runtime = agent_runtime_adapter
+        self._retry_counts = {}
         
     def step(self, instance: WorkflowInstance, workspace: SharedWorkspace, generation_runtime: Any) -> WorkflowState:
         """
@@ -96,11 +94,17 @@ class MultiAgentOrchestrator:
         
         # 4. Handle Failure / Success
         if not result.success:
-            should_retry = self._supervisor.handle_agent_failure(node, result.error_context)
-            if not should_retry:
-                instance.state = WorkflowState.FAILED
+            current_retries = self._retry_counts.get(node.node_id, 0)
+            if current_retries < node.retry_count:
+                self._retry_counts[node.node_id] = current_retries + 1
+                import logging
+                logging.getLogger(__name__).warning(f"Agent at node {node.node_id} failed. Retrying ({self._retry_counts[node.node_id]}/{node.retry_count}). Context: {result.error_context}")
                 return instance.state
-            # Return to let the outer loop try again
+            
+            import logging
+            logging.getLogger(__name__).error(f"Agent at node {node.node_id} exhausted retries. Escalating.")
+            self._bus.publish("AgentFailed", {"node_id": node.node_id, "error": result.error_context})
+            instance.state = WorkflowState.FAILED
             return instance.state
             
         # 5. Mutate SharedWorkspace (Orchestrator ONLY)

@@ -21,7 +21,7 @@ NOT registered (import would fail and break test discovery):
 """
 
 # --- UNIT -------------------------------------------------------------------
-from . import test_mcp_sse_generic_transport
+# from . import test_mcp_sse_generic_transport
 from . import test_firecrawl_integration
 from . import test_encryption_key_config
 from . import test_lifecycle_bootstrap
@@ -91,3 +91,6 @@ from . import test_phase15c_live_smoke
 from . import test_end_to_end_pipeline
 from . import test_runtime_validation
 from . import test_connector_restart_persistence
+
+from . import test_phase48_3_orchestrator_failure
+

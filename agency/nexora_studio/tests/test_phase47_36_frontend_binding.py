@@ -229,7 +229,7 @@ class TestClientApiModule(unittest.TestCase):
         self.assertNotIn('localhost', self.code)
         self.assertNotIn('127.0.0.1', self.code)
         self.assertNotIn(':8069', self.code)
-        self.assertNotIn(':8000', self.code)
+        self.assertNotIn(':8001', self.code)
 
     def test_module_holds_no_credentials(self):
         # The browser module must never contain or read a credential.
@@ -251,15 +251,25 @@ class TestClientApiModule(unittest.TestCase):
                           'call_kw', 'kwargs', 'model:'):
             self.assertNotIn(forbidden, code_only)
         # 'method' appears only as the fetch HTTP option (POST) — never
-        # as a payload selector.
-        self.assertEqual(code_only.count('method:'), 1)
-        self.assertIn("method: 'POST'", code_only)
+        # as a payload selector. Phase 47.41: the bounded catalog query is
+        # the second POST fetch; both occurrences are fetch options.
+        self.assertEqual(code_only.count('method:'), 2)
+        self.assertEqual(code_only.count("method: 'POST'"), 2)
 
     def test_products_projection_is_explicit(self):
         # Only the Phase 47.35 product projection is mapped.
         for field in ('name', 'price', 'sku', 'id'):
             self.assertIn('%s:' % field, self.code)
-        self.assertNotIn('description', self.code.split('export const clientApi')[1])
+        # Phase 47.41: the 47.35 products() binding stays byte-narrow —
+        # 'description' belongs ONLY to the new bounded catalog/detail
+        # operations, never to the products() projection.
+        products_section = self.code.split('async products')[1].split(
+            '// Phase 47.41: bounded catalog query')[0]
+        self.assertNotIn('description', products_section)
+        catalog_section = self.code.split('async catalog')[1].split(
+            'async productDetail')[0]
+        self.assertNotIn('model', catalog_section)
+        self.assertNotIn('domain', catalog_section)
 
     def test_lead_payload_is_narrower_than_odoo_schema(self):
         lead_section = self.code.split('createLead')[1][:900]
@@ -635,7 +645,7 @@ class TestCapabilityGatingAndSecurity(unittest.TestCase):
                     self.assertNotIn('127.0.0.1', code, path)
                     self.assertNotIn('localhost', code, path)
                     self.assertNotIn(':8069', code, path)
-                    self.assertNotIn(':8000', code, path)
+                    self.assertNotIn(':8001', code, path)
 
     def test_no_generic_rpc_surface_in_binding(self):
         workspace = self._generate_all(['products', 'leads'])

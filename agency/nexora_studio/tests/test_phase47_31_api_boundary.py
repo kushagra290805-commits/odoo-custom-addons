@@ -262,8 +262,8 @@ class TestCanonicalBoundary(unittest.TestCase):
     def test_40_vite_proxy_targets_canonical_bff(self):
         src = open(os.path.join(CONSOLE, 'vite.config.ts'),
                    encoding='utf-8').read()
-        self.assertIn("target: 'http://127.0.0.1:8000'", src)
-        self.assertIn("target: 'ws://127.0.0.1:8000'", src)
+        self.assertIn("target: 'http://127.0.0.1:8001'", src)
+        self.assertIn("target: 'ws://127.0.0.1:8001'", src)
         self.assertNotIn('8069', src)
 
     def test_41_console_events_feed_matches_route_contract(self):
