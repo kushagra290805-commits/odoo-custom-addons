@@ -107,7 +107,17 @@ class AIProviderManager(models.AbstractModel):
         Selects a provider via the CostRouter, executes a chat completion,
         and returns the standard result dict.
         """
+        parameters = parameters or {}
+        # A supplied execution context is authoritative, as for other task settings.
+        explicit_selection = bool((ctx.provider or ctx.model) if ctx is not None
+                                  else (parameters.get('provider') or parameters.get('model')))
+        if ctx is not None and (parameters.get('provider') or parameters.get('model')):
+            if (parameters.get('provider', ctx.provider) != ctx.provider
+                    or parameters.get('model', ctx.model) != ctx.model):
+                raise UserError('Conflicting request-scoped provider/model selection.')
         if self.env['ir.config_parameter'].sudo().get_param('agency.use_unified_provider_platform', 'False') == 'True':
+            if explicit_selection:
+                raise UserError('Request-scoped selection requires the canonical CostRouter path.')
             # Phase 15B.1: Cutover to Unified Provider Platform
             from odoo.addons.nexora_studio.services.providers.container import GLOBAL_CONTAINER
             from odoo.addons.nexora_studio.services.providers.base_provider import (
@@ -149,7 +159,6 @@ class AIProviderManager(models.AbstractModel):
                 res = orch.execute(ProviderCategory.AI, "chat_completion", payload, features, session)
                 
                 if not res.success:
-                    from odoo.exceptions import UserError
                     raise UserError(f"Unified Platform Execution Failed: {res.error}")
                     
                 return res.data
@@ -161,6 +170,8 @@ class AIProviderManager(models.AbstractModel):
                 job_id=parameters.get('job_id', 0),
                 builder_session_id=parameters.get('builder_session_id', 0),
                 capability=task_type,
+                provider=parameters.get('provider') or '',
+                model=parameters.get('model') or '',
                 temperature=parameters.get('temperature', 0.4),
                 max_tokens=parameters.get('max_tokens', 4096),
                 json_mode=parameters.get('json_mode', False),
@@ -175,7 +186,10 @@ class AIProviderManager(models.AbstractModel):
         policy = self.env['nexora.provider_execution_policy']
         # Determine if Test Override
         is_test = os.environ.get('NEXORA_TEST_PROVIDER') == 'test' or self.env.context.get('NEXORA_TEST_PROVIDER') == 'test' or parameters.get('use_test_provider') is True
+        if explicit_selection and is_test:
+            raise UserError('Explicit selection cannot be combined with a test-provider override.')
         req_caps = parameters.get('required_capabilities')
+        request_ctx = ctx
         
         while True:
             # 1. Resolve Provider and Credentials
@@ -187,7 +201,7 @@ class AIProviderManager(models.AbstractModel):
                 adapter = self.get_adapter('test')
                 credentials = {}
             else:
-                resolution = cost_router.resolve_provider(ctx, adapters, required_capabilities=req_caps)
+                resolution = cost_router.resolve_provider(request_ctx, adapters, required_capabilities=req_caps)
                 ctx = ctx.with_resolution(resolution)
                 adapter = self.get_adapter(resolution.selected_provider)
                 
@@ -215,16 +229,25 @@ class AIProviderManager(models.AbstractModel):
             # 3. Execute with Unified Parameters
             try:
                 start_time = datetime.now()
-                result = policy.execute(ctx, lambda timeout: adapter.chat_completion(
-                    messages, 
-                    credentials=credentials, 
-                    model=resolution.selected_model,
-                    temperature=ctx.temperature, 
-                    max_tokens=ctx.max_tokens,
-                    json_mode=ctx.json_mode, 
-                    timeout=timeout, 
-                    retries=0
-                ))
+                def complete(timeout):
+                    response = adapter.chat_completion(
+                        messages,
+                        credentials=credentials,
+                        model=resolution.selected_model,
+                        temperature=ctx.temperature,
+                        max_tokens=ctx.max_tokens,
+                        json_mode=ctx.json_mode,
+                        timeout=timeout,
+                        retries=0
+                    )
+                    if explicit_selection and response.get('error'):
+                        raise UserError('Explicit provider reported a completion failure.')
+                    return response
+
+                result = policy.execute(ctx, complete)
+                if explicit_selection:
+                    result.update(provider=resolution.selected_provider,
+                                  model=resolution.selected_model, fallback_occurred=False)
                 
                 # Record telemetry
                 self._record_telemetry(ctx, result, start_time)
@@ -244,6 +267,8 @@ class AIProviderManager(models.AbstractModel):
                 return result
                 
             except RateLimitException:
+                if explicit_selection:
+                    raise UserError('Explicit provider rate limited; fallback is disabled.')
                 if is_test:
                     raise UserError("Test provider hit rate limit unexpectedly.")
                 _logger.warning("Rate limit hit for %s. Masking as unavailable and retrying CostRouter...", resolution.selected_provider)

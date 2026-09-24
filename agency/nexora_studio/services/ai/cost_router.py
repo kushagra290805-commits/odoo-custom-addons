@@ -65,6 +65,30 @@ class CostRouter(models.AbstractModel):
         """
         Given the context and requirements, resolve a provider and return a ProviderResolution trace.
         """
+        if ctx.provider or ctx.model:
+            if not (isinstance(ctx.provider, str) and ctx.provider.strip()
+                    and isinstance(ctx.model, str) and ctx.model.strip()):
+                raise UserError('Explicit selection requires both provider and model.')
+            reg = self.env['nexora.provider.registry'].search([
+                ('provider_id', '=', ctx.provider), ('category', '=', 'ai')], limit=1)
+            adapter = adapters_by_key.get(ctx.provider)
+            if not reg or not reg.is_active or adapter is None or ctx.provider == 'test':
+                raise UserError('Explicit provider is unavailable; fallback is disabled.')
+            service = self.env['nexora.ai_configuration_service']
+            validation = service.validate_configuration(ctx.provider, ctx.model)
+            if not validation['valid']:
+                raise UserError(validation['errors'][0]['message'])
+            if not adapter.is_available(credentials=service.get_provider_credentials(ctx.provider)):
+                raise UserError('Explicit provider is unavailable; fallback is disabled.')
+            model = service.resolve_model_record(ctx.provider, ctx.model)
+            if required_capabilities and not set(required_capabilities).issubset(
+                    set(model.capability_ids.mapped('code'))):
+                raise UserError('Explicit model lacks required capabilities; fallback is disabled.')
+            return ProviderResolution(
+                requested_provider=ctx.provider, requested_capability=ctx.capability,
+                selected_provider=ctx.provider, selected_model=ctx.model,
+                execution_policy_applied='request_scoped_no_fallback')
+
         tier = self.classify_task(ctx.capability or 'medium')
         chain = self.get_fallback_chain(tier)
         pm = self.env['nexora.ai_provider_manager']

@@ -29,6 +29,8 @@ class AIModelCatalog(models.Model):
         ('generic_openai', 'Generic OpenAI'),
         ('airouter', 'AIRouter.in'),
         ('groq', 'Groq'),
+        ('experiential_labs', 'Experiential Labs'),
+        ('ai_credits', 'AIcredits'),
         ('test', 'Test Provider')
     ], string='Provider', required=True, index=True)
     

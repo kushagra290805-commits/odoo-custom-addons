@@ -47,6 +47,7 @@
         'data/registry_seed_data.xml',
         'data/nexora_seed_data.xml',
         'data/openrouter_config.xml',
+        'data/aicredits_config.xml',
         'data/ai_catalog_cron.xml',
         'data/nexora_capability_cron.xml',
         'data/provider_actions.xml',

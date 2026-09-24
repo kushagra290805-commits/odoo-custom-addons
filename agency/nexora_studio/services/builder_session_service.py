@@ -604,7 +604,7 @@ class BuilderSessionService(models.AbstractModel):
                 raw_requirements = json.dumps(raw_requirements)
             context_id = str(session.session_uuid)
             
-            result_context = coordinator.start_generation(raw_requirements, session, context_id)
+            result_context = coordinator.start_generation(raw_requirements, session, context_id, mode=mode)
 
             if result_context and result_context.state.name == "COMPLETED":
                 # Wire token into Vite env if not present by writing .env.local
@@ -660,7 +660,6 @@ class BuilderSessionService(models.AbstractModel):
         self._emit_event(session, RuntimeEvents.SESSION_STATE_CHANGED, 'Graceful cancellation requested.')
         # Assuming GenerationStateManager reads session status or another mechanism interrupts it
         return True
-
 
     @api.model
     def apply_ai_patch(self, session, prompt):

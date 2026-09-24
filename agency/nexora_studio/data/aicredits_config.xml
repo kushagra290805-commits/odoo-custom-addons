@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data noupdate="1">
+
+        
+
+        <record id="ai_credits_api_key" model="ir.config_parameter">
+            <field name="key">nexora.ai_credits.api_key</field>
+            <field name="value" />
+        </record>
+
+        <record id="ai_credits_base_url" model="ir.config_parameter">
+            <field name="key">nexora.ai_credits.base_url</field>
+            <field name="value">https://api.aicredits.in/v1</field>
+        </record>
+
+        <record id="ai_credits_default_model" model="ir.config_parameter">
+            <field name="key">nexora.ai_credits.default_model</field>
+            <field name="value">z-ai/glm-5.3-flash</field>
+        </record>
+
+        <record id="ai_credits_enabled" model="ir.config_parameter">
+            <field name="key">nexora.ai_credits.enabled</field>
+            <field name="value">True</field>
+        </record>
+
+        <record id="ai_credits_timeout" model="ir.config_parameter">
+            <field name="key">nexora.ai_credits.timeout</field>
+            <field name="value">120</field>
+        </record>
+
+        
+        <record id="ai_credits_model_glm_5_3_flash" model="nexora.ai_model_catalog">
+            <field name="provider">ai_credits</field>
+            <field name="model_id">z-ai/glm-5.3-flash</field>
+            <field name="name">Z.ai: GLM 5.3 Flash</field>
+            <field name="status">active</field>
+        </record>
+
+        
+        <record id="ai_credits_model_gpt_5_6_luna" model="nexora.ai_model_catalog"><field name="provider">ai_credits</field><field name="model_id">openai/gpt-5.6-luna</field><field name="name">OpenAI: GPT-5.6 Luna</field><field name="status">active</field></record><record id="provider_registry_ai_credits" model="nexora.provider.registry">
+            <field name="provider_id">ai_credits</field>
+            <field name="name">AIcredits</field>
+            <field name="category">ai</field>
+            <field name="provider_type">cloud</field>
+            <field name="compatibility_profile">openai_compatible</field>
+            <field name="base_url">https://api.aicredits.in/v1</field>
+            <field name="timeout">120</field>
+            <field name="retry_policy">exponential</field>
+            <field name="is_active" eval="True" />
+            <field name="default_model_id" ref="ai_credits_model_glm_5_3_flash" />
+        </record>
+
+    </data>
+</odoo>

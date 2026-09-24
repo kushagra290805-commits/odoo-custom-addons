@@ -19,7 +19,7 @@ class AIRuntimeAdapter:
         prompt = payload.get('prompt') or payload.get('task')
         
         # If there are remaining keys that look like context, stringify them into the prompt
-        context_keys = [k for k in payload.keys() if k not in ('prompt', 'task', 'response_format', 'system_prompt', 'temperature', 'max_tokens', 'timeout', 'retries')]
+        context_keys = [k for k in payload.keys() if k not in ('prompt', 'task', 'response_format', 'system_prompt', 'temperature', 'max_tokens', 'timeout', 'retries', 'provider', 'model')]
         if context_keys:
             context_data = {k: payload[k] for k in context_keys}
             context_str = json.dumps(context_data, default=str)
@@ -39,9 +39,17 @@ class AIRuntimeAdapter:
         }
         
         # Extract metadata overrides if present
-        for key in ['system_prompt', 'temperature', 'max_tokens', 'timeout', 'retries']:
+        for key in ['system_prompt', 'temperature', 'max_tokens', 'timeout', 'retries', 'provider', 'model']:
             if key in payload:
                 parameters[key] = payload[key]
+                
+        provider_override = payload.get('provider') or self._pm.env.context.get('ai_provider_override')
+        if provider_override:
+            parameters['provider'] = provider_override
+
+        model_override = payload.get('model') or self._pm.env.context.get('ai_model_override')
+        if model_override:
+            parameters['model'] = model_override
                 
         # The AIProviderManager returns a generic response dict
         try:

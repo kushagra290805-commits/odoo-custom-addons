@@ -212,8 +212,37 @@ class GenerationCoordinator:
                 "mode": mode
             }
             try:
-                prepare_resp = runtime.ai.generate("supervisor_prepare", prepare_payload)
-                prepare_contract = SupervisorPrepareContract(**prepare_resp)
+                import json
+                
+                params = {"json_mode": True, "builder_session_id": getattr(session, 'id', 0)}
+                if self.orchestrator.env.context.get('ai_provider_override'):
+                    params['provider'] = self.orchestrator.env.context.get('ai_provider_override')
+                if self.orchestrator.env.context.get('ai_model_override'):
+                    params['model'] = self.orchestrator.env.context.get('ai_model_override')
+                    
+                prepare_resp_raw = self.orchestrator.route_request(
+                    task_type="supervisor_prepare",
+                    prompt=json.dumps(prepare_payload, default=str),
+                    parameters=params
+                )
+                resp_text = prepare_resp_raw.get('response', '{}')
+                # Try to clean up markdown JSON blocks
+                if resp_text.startswith('```json'):
+                    resp_text = resp_text.split('```json')[1].split('```')[0].strip()
+                elif resp_text.startswith('```'):
+                    resp_text = resp_text.split('```')[1].split('```')[0].strip()
+                
+                try:
+                    prepare_data = json.loads(resp_text)
+                except json.JSONDecodeError:
+                    _logger.error(f"Supervisor PREPARE returned invalid JSON: {resp_text}. Raw dict: {prepare_resp_raw}")
+                    print(f"[DEBUG_JSON_ERROR] {resp_text}")
+                    print(f"[DEBUG_JSON_RAW] {prepare_resp_raw}")
+                    prepare_data = {"is_valid": False, "rejection_reason": "Invalid JSON response"}
+                
+                valid_keys = {'is_valid', 'instruction', 'rejection_reason'}
+                filtered_data = {k: v for k, v in prepare_data.items() if k in valid_keys}
+                prepare_contract = SupervisorPrepareContract(**filtered_data)
             except Exception as e:
                 _logger.error(f"Supervisor PREPARE failed: {e}")
                 prepare_contract = SupervisorPrepareContract(is_valid=False, rejection_reason=str(e))
@@ -251,8 +280,31 @@ class GenerationCoordinator:
                 # Evaluate via Supervisor
                 evidence = completed_context.get_supervisor_evidence()
                 try:
-                    eval_resp = runtime.ai.generate("supervisor_evaluate", evidence)
-                    eval_contract = SupervisorEvaluateContract(**eval_resp)
+                    params = {"builder_session_id": getattr(session, 'id', 0), "system_prompt": "You are a Supervisor AI. Return ONLY a valid JSON object."}
+                    if self.orchestrator.env.context.get('ai_provider_override'):
+                        params['provider'] = self.orchestrator.env.context.get('ai_provider_override')
+                    if self.orchestrator.env.context.get('ai_model_override'):
+                        params['model'] = self.orchestrator.env.context.get('ai_model_override')
+                        
+                    eval_resp_raw = self.orchestrator.route_request(
+                        task_type="supervisor_evaluate",
+                        prompt=json.dumps(evidence, default=str),
+                        parameters=params
+                    )
+                    resp_text = eval_resp_raw.get('response', '{}')
+                    if resp_text.startswith('```json'):
+                        resp_text = resp_text.split('```json')[1].split('```')[0].strip()
+                    elif resp_text.startswith('```'):
+                        resp_text = resp_text.split('```')[1].split('```')[0].strip()
+                        
+                    try:
+                        eval_data = json.loads(resp_text)
+                    except json.JSONDecodeError:
+                        eval_data = {"satisfies_requirements": False, "findings": ["Invalid JSON response"], "improvement_instruction": "Return valid JSON"}
+                        
+                    valid_eval_keys = {'satisfies_requirements', 'findings', 'improvement_instruction'}
+                    filtered_eval = {k: v for k, v in eval_data.items() if k in valid_eval_keys}
+                    eval_contract = SupervisorEvaluateContract(**filtered_eval)
                 except Exception as e:
                     _logger.error(f"Supervisor EVALUATE failed closed: {e}")
                     break
