@@ -55,10 +55,11 @@ class TestNativeInventory(unittest.TestCase):
         cls.files = ReactComponentLibrary().synthesize_all()
 
     def test_01_inventory_complete(self):
-        # 28 component modules + the barrel exporter.
+        # 31 component modules + the barrel exporter.
+        # (Phase 47.41: +3 commerce organisms: CatalogGrid, ProductDetail, CartDrawer)
         components = [f for f in self.files
                       if f.startswith('src/components/') and f.endswith('.jsx')]
-        self.assertEqual(len(components), 28)
+        self.assertEqual(len(components), 31)
         self.assertIn('src/components/index.js', self.files)
         for expected in ('Card', 'FeatureGrid', 'Testimonial', 'PricingCard',
                          'ProductGrid', 'FAQ', 'Button', 'Hero'):

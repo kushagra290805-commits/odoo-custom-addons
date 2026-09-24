@@ -29,7 +29,16 @@ _FIELD_PATTERNS: Dict[str, re.Pattern] = {
     'positioning': re.compile(r'^\s*(?:positioning|brand promise)\s*:\s*(.+)$',
                               re.IGNORECASE | re.MULTILINE),
     'differentiators': re.compile(r'^\s*differentiators\s*:\s*(.+)$',
-                                  re.IGNORECASE | re.MULTILINE),
+                                   re.IGNORECASE | re.MULTILINE),
+    'cta': re.compile(r'^\s*cta\s*:\s*(.+)$',
+                      re.IGNORECASE | re.MULTILINE),
+    # Phase 47.40: the brief's explicit visual/style line ("Visual: ...",
+    # "Visual direction: ...") — a bounded brand-signal input for the
+    # ThemeEngine's deterministic visual-direction policy (validated against
+    # the bounded vocabulary upstream; never a free-form style picker).
+    'visual': re.compile(r'^\s*(?:visual(?:\s+(?:style|direction))?)'
+                         r'\s*:\s*(.+)$',
+                         re.IGNORECASE | re.MULTILINE),
 }
 
 _LEADING_ARTICLE = re.compile(r'^\s*(?:a|an|the)\s+', re.IGNORECASE)
@@ -108,6 +117,19 @@ class RequirementAnalyzer:
                 if s.strip() and len(s.strip()) > 2
             ][:8]
 
+        cta_match = _FIELD_PATTERNS['cta'].search(intent)
+        cta = cta_match.group(1).strip() if cta_match else ''
+        if cta:
+            cta = cta.split('\n')[0].strip().rstrip('.,')
+        # Capture positioning + differentiators as business signals (the brief's
+        # factual identity; mirrors the existing labeled-brief precedent).
+        positioning_match = _FIELD_PATTERNS['positioning'].search(intent)
+        positioning = positioning_match.group(1).strip() if positioning_match else ''
+        diff_match = _FIELD_PATTERNS['differentiators'].search(intent)
+        differentiators = diff_match.group(1).strip() if diff_match else ''
+        visual_match = _FIELD_PATTERNS['visual'].search(intent)
+        visual = visual_match.group(1).strip() if visual_match else ''
+
         if business_name:
             req.preferences['business_name'] = business_name
         if business_category:
@@ -118,6 +140,14 @@ class RequirementAnalyzer:
             req.preferences['target_audience'] = target_audience
         if services:
             req.preferences['services'] = services
+        if positioning:
+            req.preferences['positioning'] = positioning
+        if differentiators:
+            req.preferences["differentiators"] = differentiators
+        if visual:
+            req.preferences["visual"] = visual
+        if cta:
+            req.preferences['cta'] = cta
 
         # Phase 47.9 (U8): explicit Spline requirement detection. Checked before
         # the generic "3d" rule so "spline 3d scene" resolves to the Spline

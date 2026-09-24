@@ -607,6 +607,22 @@ class BuilderSessionService(models.AbstractModel):
             result_context = coordinator.start_generation(raw_requirements, session, context_id)
 
             if result_context and result_context.state.name == "COMPLETED":
+                # Wire token into Vite env if not present by writing .env.local
+                try:
+                    cenv = False
+                    if session.project_name:
+                        cenv = self.env['nexora.client_environment'].search([('name', '=', session.project_name)], limit=1)
+                    if not cenv:
+                        cenv = self.env['nexora.client_environment'].search([('status', '=', 'ready')], order='id desc', limit=1)
+                    
+                    if cenv:
+                        token_info = self.env['nexora.client_environment_service'].issue_client_api_token(cenv.id)
+                        if token_info and 'token' in token_info:
+                            env_file = os.path.join(session.workspace_id.workspace_path, '.env.local')
+                            with open(env_file, 'a', encoding='utf-8') as f:
+                                f.write(f"\nNEXORA_CLIENT_API_TOKEN={token_info['token']}\n")
+                except Exception as e:
+                    _logger.warning("Failed to wire token to workspace .env.local: %s", e)
                 self.transition_state(session, 'ai_reviewing', 'Generation completed, entering AI review.')
                 # Phase 47.29: surface the EXISTING composition manifest
                 # (pattern, per-section modes, deterministic percentage,

@@ -94,6 +94,18 @@ class ViteLauncher(models.AbstractModel):
         env = os.environ.copy()
         env['PORT'] = str(port)
 
+        # Wire existing client API token into Vite's environment
+        if 'NEXORA_CLIENT_API_TOKEN' not in env:
+            try:
+                cenv = self.env['nexora.client_environment'].search([('status', '=', 'ready')], order='id desc', limit=1)
+                if cenv:
+                    token_info = self.env['nexora.client_environment_service'].issue_client_api_token(cenv.id)
+                    if token_info and 'token' in token_info:
+                        env['NEXORA_CLIENT_API_TOKEN'] = token_info['token']
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("ViteLauncher failed to issue client API token: %s", e)
+
         return {
             'ready': True,
             'command': cmd,

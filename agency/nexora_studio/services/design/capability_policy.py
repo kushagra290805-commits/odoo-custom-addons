@@ -72,6 +72,24 @@ SERVICE_TO_CAPABILITY = {
 }
 
 
+_BACKEND_LINE_RE = __import__('re').compile(
+    r'^\s*backend\s*:\s*(.+)$', __import__('re').IGNORECASE | __import__('re').MULTILINE
+)
+
+
+def _explicit_backend_statement(raw_input: str):
+    """The Backend: line (the brief format's authoritative declaration) when present.
+
+    Bare ``None`` -> no explicit statement; ``''`` -> ``Backend:`` with an
+    empty body (still authoritative). Callers distinguish missing-line vs
+    empty-statement.
+    """
+    if not raw_input:
+        return None
+    match = _BACKEND_LINE_RE.search(raw_input)
+    return match.group(1).strip() if match else None
+
+
 def infer_capabilities(
     business_category: str,
     services: List[str],
@@ -81,6 +99,37 @@ def infer_capabilities(
 ) -> List[str]:
     seen = set()
     capabilities = []
+
+    # Phase 47.39A (verified defect): an explicit ``Backend:`` line is the
+    # authoritative capability source for the labeled-brief format — the word-
+    # substring approach produces false positives ("Content requirements:" ->
+    # "content" -> website_content; "long-form essays" -> "form" -> forms;
+    # "/reservations" page path / "Reserve a table" CTA -> "reservations" ->
+    # bookings). Bare ``None`` -> no Backend declaration, preserving the
+    # existing non-brief call surface.
+    statement = _explicit_backend_statement(raw_input)
+    if statement is not None:
+        text = statement.lower()
+        if not text or text.startswith('none') or not any(
+            token in text for token in (
+                'products', 'catalog', 'store', 'ecommerce', 'inventory',
+                'stock', 'customers', 'customer', 'client', 'user', 'portal',
+                'orders', 'order', 'checkout', 'cart', 'payments', 'payment',
+                'billing', 'appointments', 'booking', 'reservations',
+                'subscriptions', 'memberships', 'leads', 'lead', 'contacts',
+                'address', 'invoicing', 'invoice', 'content', 'blog', 'forms',
+                'form', 'crm',
+            )
+        ):
+            return []
+        for key, capability in SERVICE_TO_CAPABILITY.items():
+            if key in text and capability not in seen:
+                seen.add(capability)
+                capabilities.append(capability)
+        return capabilities
+
+    # Back-compat: briefs without a Backend: line (or direct policy
+    # callers passing only business_category/services).
     text_parts = [business_category] + services + features + goals + [raw_input]
     text = " ".join(filter(None, text_parts)).lower()
 

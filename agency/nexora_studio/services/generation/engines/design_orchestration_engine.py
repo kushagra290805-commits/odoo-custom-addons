@@ -88,8 +88,23 @@ class DesignOrchestrationEngine(BaseGenerationEngine):
         # blueprint this bridge already dispatches — the provider's
         # token_set contract. ThemeEngine remains the palette owner; this
         # engine only transports it.
+        # Phase 47.40: the transport now also carries the ThemeEngine's
+        # variant token scales (spacing/radius/shadow/motion — density,
+        # corner, depth and motion directions) plus the visual-direction
+        # payload itself (motion_level / animation consumption) through
+        # the same kwargs→output_config precedent (client_api /
+        # spline_scene_url). Pure transport; no decision is made here.
         blueprint = dict(modular_blueprint_dict)
         blueprint['token_set'] = self._theme_token_set(artifact, blueprint)
+        visual_direction = dict(
+            artifact.generation_metadata.get('visual_direction') or {})
+        if visual_direction:
+            # The blueprint's AnimationBlueprint (computed upstream by
+            # AnimationPlanner) rides along so the provider's motion CSS
+            # consumes the existing contract instead of a second one.
+            animation_bp = modular_blueprint_dict.get('animation') or {}
+            if animation_bp:
+                visual_direction['animation'] = dict(animation_bp)
 
         # 3. Call the existing DesignOrchestrator (canonical routing layer),
         #    which resolves the provider via RenderingProviderRegistry and
@@ -105,6 +120,7 @@ class DesignOrchestrationEngine(BaseGenerationEngine):
                 spline_scene_url=spline_scene_url,
                 renderer_assets=renderer_assets,
                 client_api=client_api,
+                visual_direction=visual_direction,
             )
         except Exception as e:
             _logger.error("DesignOrchestrationEngine provider execution failed: %s", e, exc_info=True)
@@ -172,7 +188,12 @@ class DesignOrchestrationEngine(BaseGenerationEngine):
         into the provider's token_set contract (the dict RenderProject
         already maps). Preserves any existing token content; theme tokens
         are additive so deterministic provider defaults only apply when the
-        theme is absent."""
+        theme is absent.
+
+        Phase 47.40: also transports the ThemeEngine variant token scales
+        (spacing/radius/shadow/motion) so tokens.css reflects the visual
+        direction's density/corner/depth/motion decisions — the provider
+        needs no signature change (tokens ride the existing contract)."""
         token_set = dict(blueprint.get('token_set') or {})
         try:
             tokens = list(token_set.get('tokens') or [])
@@ -214,6 +235,29 @@ class DesignOrchestrationEngine(BaseGenerationEngine):
             tokens.append({'name': 'body', 'token_type': 'font',
                            'value': "'%s', system-ui, sans-serif" % font_body,
                            'category': 'typography'})
+            # Phase 47.40: variant token scales from the theme's
+            # design_tokens (populated by ThemeEngine from the visual
+            # direction). Token names match the provider's tokens.css
+            # custom properties (--spacing-*, --radius-*, --shadow-*,
+            # --motion-*), so the emitted values override the provider's
+            # universal defaults.
+            design_tokens = getattr(theme, 'design_tokens', None) or {}
+            scale_types = (
+                ('spacing', 'spacing'), ('radius', 'radius'),
+                ('shadow', 'shadow'), ('motion', 'transition'),
+            )
+            for scale_key, token_type in scale_types:
+                scale = design_tokens.get(scale_key)
+                if not isinstance(scale, dict):
+                    continue
+                for token_name in sorted(scale):
+                    value = scale[token_name]
+                    if value is None:
+                        continue
+                    tokens.append({
+                        'name': token_name, 'token_type': token_type,
+                        'value': str(value), 'category': 'layout',
+                    })
         token_set['tokens'] = tokens
         return token_set
 

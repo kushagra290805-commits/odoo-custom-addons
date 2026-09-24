@@ -41,9 +41,11 @@ class TestComponentSynthesis(unittest.TestCase):
             'src/components/ProductGrid.jsx', 'src/components/BlogGrid.jsx', 'src/components/FAQ.jsx',
             'src/components/ContactForm.jsx', 'src/components/AuthForm.jsx', 'src/components/Table.jsx',
             'src/components/Sidebar.jsx', 'src/components/Accordion.jsx', 'src/components/Tabs.jsx',
-            'src/components/Dropdown.jsx', 'src/components/index.js'
+            'src/components/Dropdown.jsx', 'src/components/index.js',
+            'src/components/CatalogGrid.jsx', 'src/components/ProductDetail.jsx',
+            'src/components/CartDrawer.jsx'
         ]
-        self.assertEqual(len(self.files), 29)
+        self.assertEqual(len(self.files), 32)
         for path in expected:
             self.assertIn(path, self.files, f"Missing synthesized file: {path}")
 

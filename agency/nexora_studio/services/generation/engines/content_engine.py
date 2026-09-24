@@ -25,7 +25,8 @@ _CONTENT_SCHEMA_PROMPT = (
     '"category": string}]}]}}} '
     "where \"pages\" is an OBJECT keyed by page path (never an array). "
     "Use the page map keys exactly. Write real, client-specific body copy "
-    "grounded in the provided business/research/knowledge context. "
+    "grounded in the provided business/positioning/research/knowledge context "
+    "and the exact client brief (authoritative). "
     "\"items\" is REQUIRED for every Pricing, FAQ, and "
     "MenuHighlights/Product section. Use exactly these item fields: "
     "Pricing items: {\"title\": plan name, \"price\": price string, "
@@ -45,6 +46,13 @@ _CONTENT_SCHEMA_PROMPT = (
     "an array, never a nested object per field. "
     "Keep body copy on every section as well (items complement it, not "
     "replace it). "
+    "FACTUAL GROUNDING (mandatory): Only use the business facts supplied in "
+    "the business context + raw brief (addresses, phone numbers, awards, "
+    "named testimonials/authors, certifications, SLAs, years in business, "
+    "locations, staff identities, statistics, guarantees, pricing facts, "
+    "product claims). Do NOT invent concrete factual assertions the brief "
+    "did not supply. Creative marketing language is allowed; fabricated "
+    "factual claims are not (unsupported facts must simply be omitted). "
     "For sections of type \"Pricing\" without items: separate each plan "
     "with a blank line, first line exactly \"Plan name - price\", then one "
     "feature per line. "
@@ -52,9 +60,8 @@ _CONTENT_SCHEMA_PROMPT = (
     "a blank line, first line is the question (ending with ?), following "
     "lines the answer. "
     "For sections of type \"MenuHighlights\" without items: separate each "
-    "item with a blank line, first line exactly \"Item name - price\" "
-    "(invent plausible prices if none are given), then a short description "
-    "line."
+    "item with a blank line, first line exactly \"Item name - price\", "
+    "then a short description line."
 )
 
 # Phase 47.27 (ADR-0079): canonical structured-item field names accepted
@@ -115,7 +122,14 @@ class ContentEngine(BaseGenerationEngine):
             'location': req.location or branding.get('location', ''),
             'audience': req.target_audience,
             'services': (branding.get('services') or [])[:8],
-            'positioning': '',
+            'positioning': branding.get('positioning') or '',
+            'differentiators': branding.get('differentiators') or '',
+            'cta': branding.get('cta') or '',
+            # Raw brief (bounded): the authoritative client fact base — the
+            # model must not invent facts missing from it (fixes SLA/address/
+            # testimonial invention). Bounded, no secrets.
+            'brief': (req.raw_input or '')[:2000],
+            'supervisor_instruction': getattr(req, 'current_supervisor_instruction', ''),
         }
 
     @staticmethod

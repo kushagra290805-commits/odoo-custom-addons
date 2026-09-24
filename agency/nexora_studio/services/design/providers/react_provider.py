@@ -235,6 +235,72 @@ export const clientApi = {
     }));
   },
 
+  // Phase 47.41: bounded catalog query (search/category/sort/pagination).
+  // Only whitelisted scalars are ever sent; the response carries the
+  // bounded catalog projection (id/name/sku/price/category/description/
+  // availability/image route) and the truthful total.
+  async catalog(params) {
+    const p = params || {};
+    const body = {
+      limit: Math.max(1, Math.min(Number(p.limit) || 24, 100)),
+      offset: Math.max(0, Number(p.offset) || 0),
+    };
+    if (p.query) body.query = String(p.query).slice(0, 80);
+    if (p.categoryId != null) body.category_id = Number(p.categoryId) || null;
+    if (p.sort) body.sort = String(p.sort);
+    if (p.inStockOnly) body.in_stock_only = true;
+    const data = await clientApiRequest('/products/catalog', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    const products = Array.isArray(data.products) ? data.products : [];
+    return {
+      products: products.map((item) => ({
+        id: item && item.id,
+        name: (item && item.name) || '',
+        sku: (item && item.sku) || '',
+        price: item ? item.price : null,
+        compareAt: (item && item.compare_at_price) || null,
+        category: (item && item.category) || '',
+        description: (item && item.description) || '',
+        inStock: item ? item.in_stock !== false : true,
+        image: (item && item.image) || null,
+      })),
+      total: Number(data.total) || 0,
+      limit: Number(data.limit) || body.limit,
+      offset: Number(data.offset) || 0,
+    };
+  },
+
+  // Phase 47.41: one product's bounded detail (tenant-scoped server-side).
+  async productDetail(id) {
+    const data = await clientApiRequest('/products/detail/' + encodeURIComponent(id));
+    const p = data.product || {};
+    return {
+      id: p.id,
+      name: p.name || '',
+      sku: p.sku || '',
+      price: p.price != null ? p.price : null,
+      compareAt: p.compare_at_price || null,
+      category: p.category || '',
+      description: p.description || '',
+      descriptionFull: p.description_full || '',
+      inStock: p.in_stock !== false,
+      image: p.image || null,
+    };
+  },
+
+  // Phase 47.41: the client DB's product categories.
+  async categories() {
+    const data = await clientApiRequest('/categories');
+    const categories = Array.isArray(data.categories) ? data.categories : [];
+    return categories.map((c) => ({
+      id: c && c.id,
+      name: (c && c.name) || '',
+      productCount: (c && c.product_count) || 0,
+    }));
+  },
+
   // Capability 'leads': explicit field whitelist (name, email, message) —
   // nothing else is read from the form or forwarded to the backend.
   async createLead(payload) {
@@ -276,6 +342,117 @@ export function useClientProducts(limit) {
 export default clientApi;
 """
 
+    def _generate_cart_js(self) -> str:
+        """Phase 47.41: the ONE application-level cart state owner.
+
+        Generated scaffold module (clientApi.js precedent). React context
+        + localStorage persistence; minimal bounded contract (add/remove/
+        updateQuantity/clear/count/subtotal). No second state framework —
+        plain React context over the provider scaffold.
+        """
+        return """import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+
+// Phase 47.41 — Canonical generated-app cart state (client-side only).
+//
+// ONE application-level owner: every commerce surface (catalog, PDP, cart
+// drawer, nav badge) consumes this context. localStorage persistence keeps
+// the cart across refreshes. No server cart, no checkout (deferred).
+
+const CART_STORAGE_KEY = 'nexora_cart_v1';
+
+function readStoredCart() {
+  try {
+    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((i) => i && i.id != null && Number(i.quantity) > 0)
+      .map((i) => ({
+        id: i.id,
+        name: String(i.name || ''),
+        price: i.price != null ? Number(i.price) : null,
+        image: i.image || null,
+        quantity: Math.max(1, Math.min(Number(i.quantity) || 1, 99)),
+      }));
+  } catch (err) {
+    return [];
+  }
+}
+
+const CartContext = createContext(null);
+
+export function CartProvider({ children }) {
+  const [items, setItems] = useState(readStoredCart);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch (err) {
+      /* storage unavailable — cart stays in-memory */
+    }
+  }, [items]);
+
+  const cart = useMemo(() => {
+    const count = items.reduce((n, i) => n + i.quantity, 0);
+    const subtotalValue = items.reduce((n, i) => n + ((i.price || 0) * i.quantity), 0);
+    return {
+      items,
+      count,
+      subtotalValue,
+      add(product) {
+        if (!product || product.id == null) return;
+        setItems((prev) => {
+          const existing = prev.find((i) => i.id === product.id);
+          if (existing) {
+            return prev.map((i) => i.id === product.id
+              ? { ...i, quantity: Math.min(i.quantity + 1, 99) } : i);
+          }
+          return prev.concat([{
+            id: product.id,
+            name: String(product.name || ''),
+            price: product.price != null ? Number(product.price) : null,
+            image: product.image || null,
+            quantity: 1,
+          }]);
+        });
+      },
+      remove(id) {
+        setItems((prev) => prev.filter((i) => i.id !== id));
+      },
+      updateQuantity(id, quantity) {
+        const q = Math.max(0, Math.min(Number(quantity) || 0, 99));
+        setItems((prev) => q <= 0
+          ? prev.filter((i) => i.id !== id)
+          : prev.map((i) => i.id === id ? { ...i, quantity: q } : i));
+      },
+      increment(id) {
+        setItems((prev) => prev.map((i) => i.id === id
+          ? { ...i, quantity: Math.min(i.quantity + 1, 99) } : i));
+      },
+      decrement(id) {
+        setItems((prev) => prev.map((i) => i.id === id
+          ? { ...i, quantity: Math.max(i.quantity - 1, 1) } : i));
+      },
+      clear() {
+        setItems([]);
+      },
+    };
+  }, [items]);
+
+  return React.createElement(CartContext.Provider, { value: cart }, children);
+}
+
+export function useCart() {
+  const ctx = useContext(CartContext);
+  if (!ctx) {
+    throw new Error('useCart must be used within CartProvider');
+  }
+  return ctx;
+}
+
+export default CartContext;
+"""
+
     def _generate_vite_config(self, context: Optional[RenderingContext] = None) -> str:
         # Phase 47.36: same-origin Client API proxy (capability-gated). The
         # browser app calls only relative /api/v1/client/* URLs with NO
@@ -288,7 +465,7 @@ export default clientApi;
   server: {
     proxy: {
       '/api/v1/client': {
-        target: process.env.NEXORA_CLIENT_API_URL || 'http://127.0.0.1:8000',
+        target: process.env.NEXORA_CLIENT_API_URL || 'http://127.0.0.1:8001',
         changeOrigin: true,
         secure: false,
         configure: (proxy) => {
@@ -359,6 +536,10 @@ export default defineConfig({
         # projects receive no API client and no proxy.
         if self._client_api_binding(context)['enabled']:
             project_structure['src/lib/clientApi.js'] = self._generate_client_api_js()
+            # Phase 47.41: the ONE app-level cart state owner ships with
+            # the commerce-capable scaffold (clientApi.js precedent).
+            if self._client_api_binding(context)['products']:
+                project_structure['src/lib/cart.js'] = self._generate_cart_js()
 
         # 2. Generate Design Tokens
         project_structure.update(self.generate_design_tokens(context))
@@ -570,9 +751,25 @@ export default defineConfig({
     def generate_design_tokens(self, context: RenderingContext) -> Dict[str, str]:
         """
         Synthesize authoritative stylesheets and token variable bindings.
+
+        Phase 47.40: the visual direction transported through
+        output_config (ThemeEngine owner, DesignOrchestrationEngine
+        bridge) drives the bounded motion CSS block appended to
+        tokens.css — the AnimationBlueprint's computed strategy is finally
+        consumed downstream instead of remaining dead.
         """
         tokens = context.tokens if context.tokens else getattr(context.render_project, "tokens", [])
-        css = self._generate_tokens_css(tokens)
+        visual_direction = {}
+        try:
+            vd = (getattr(context, 'output_config', None) or {}).get('visual_direction')
+            if isinstance(vd, dict):
+                visual_direction = vd
+        except Exception:
+            visual_direction = {}
+        css = self._generate_tokens_css(
+            tokens,
+            motion_level=str(visual_direction.get('motion_level') or 'none'),
+            animation=visual_direction.get('animation') or {})
         # Phase 47.24 (ADR-0076): when external Tailwind components are
         # selected, the stylesheet gains the Tailwind v4 import plus an
         # @theme mapping so utility classes (bg-card, text-card-foreground,
@@ -823,7 +1020,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 );'''
 
-    def _generate_tokens_css(self, tokens: List[RenderToken]) -> str:
+    def _generate_tokens_css(self, tokens: List[RenderToken],
+                             motion_level: str = 'none',
+                             animation: Optional[Dict[str, Any]] = None) -> str:
         # Phase 47.23 (ADR-0075): token defaults are DIRECT literal values.
         # The previous block emitted self-referential custom properties
         # (--x: var(--x, fallback)) which are invalid CSS (cyclic reference)
@@ -886,7 +1085,70 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             "button, input, textarea, select { font: inherit; }",
             "*:focus-visible { outline: 2px solid var(--color-primary, #3f5c76); outline-offset: 2px; }"
         ])
+
+        # Phase 47.40: bounded motion budget (ThemeEngine visual direction
+        # + the AnimationBlueprint's computed strategy). CSS-only entrance
+        # motion with a HARD prefers-reduced-motion guard — it never runs
+        # for users requesting reduced motion, never animates interactive
+        # controls (only section entrances), and uses only opacity/transform
+        # (compositor-safe). 'none' (and any unknown level) emits nothing —
+        # the pre-47.40 behavior.
+        if motion_level in ('subtle', 'standard', 'expressive'):
+            lines.extend(self._motion_css_block(motion_level, animation or {}))
         return "\n".join(lines)
+
+    @staticmethod
+    def _motion_css_block(motion_level: str,
+                          animation: Dict[str, Any]) -> List[str]:
+        """Bounded, performance-safe entrance-motion CSS for a motion
+        level. The stagger delay grows with the level; 'expressive' adds a
+        subtle scale. Consumes the AnimationBlueprint abstract requirements
+        (fade_in / scroll_trigger / staggered_entrance) computed upstream
+        — mapping them to the fixed CSS vocabulary below, nothing more."""
+        abstract = {str(a).lower() for a in (animation.get('abstract_requirements') or [])}
+        fade = 'fade_in' in abstract or not abstract
+        stagger = ('staggered_entrance' in abstract
+                   or motion_level in ('standard', 'expressive'))
+        step = {'subtle': '40ms', 'standard': '70ms',
+                'expressive': '100ms'}[motion_level]
+        duration = {'subtle': '240ms', 'standard': '320ms',
+                    'expressive': '420ms'}[motion_level]
+        easing = {'subtle': 'ease-out', 'standard': 'ease-in-out',
+                  'expressive': 'cubic-bezier(0.22, 1, 0.36, 1)'}[motion_level]
+        transform = ('translateY(12px) scale(0.985)'
+                     if motion_level == 'expressive' else 'translateY(10px)')
+        lines = [
+            "",
+            "/* Phase 47.40 motion budget (%s) — entrance only, reduced-motion safe */" % motion_level,
+            "@keyframes nx-section-in {",
+            "  from { opacity: 0; transform: %s; }" % transform,
+            "  to { opacity: 1; transform: none; }",
+            "}",
+        ]
+        if fade:
+            lines.append(
+                "@media (prefers-reduced-motion: no-preference) {")
+            lines.append(
+                "  section { animation: nx-section-in %s %s both; }"
+                % (duration, easing))
+            if stagger:
+                lines.append(
+                    "  section:nth-child(2) { animation-delay: %s; }" % step)
+                lines.append(
+                    "  section:nth-child(3) { animation-delay: %s; }"
+                    % ('calc(%s * 2)' % step))
+                lines.append(
+                    "  section:nth-child(n+4) { animation-delay: %s; }"
+                    % ('calc(%s * 3)' % step))
+            lines.append("}")
+        # Hard accessibility guard: reduced-motion users get NO entrance
+        # animation, regardless of level.
+        lines.extend([
+            "@media (prefers-reduced-motion: reduce) {",
+            "  section { animation: none !important; }",
+            "}",
+        ])
+        return lines
 
     def _generate_assets_js(self, global_assets: List[RenderAsset], pages: List[RenderPage]) -> str:
         lines = [

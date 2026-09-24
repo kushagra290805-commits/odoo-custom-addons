@@ -36,6 +36,10 @@ CLIENT_API_METHODS = (
     'client_api_health',
     'client_api_list_products',
     'client_api_create_lead',
+    'client_api_catalog',
+    'client_api_list_categories',
+    'client_api_product_detail',
+    'client_api_product_image',
 )
 
 

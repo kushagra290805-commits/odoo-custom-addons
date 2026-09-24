@@ -57,6 +57,11 @@ class ReactComponentLibrary:
         files['src/components/Hero.jsx'] = self._gen_hero()
         files['src/components/FeatureGrid.jsx'] = self._gen_feature_grid()
         files['src/components/ProductGrid.jsx'] = self._gen_product_grid()
+        # Phase 47.41: commerce organisms (presentation-only; state lives
+        # in the app-level cart owner + page-level catalog owner).
+        files['src/components/CatalogGrid.jsx'] = self._gen_catalog_grid()
+        files['src/components/ProductDetail.jsx'] = self._gen_product_detail()
+        files['src/components/CartDrawer.jsx'] = self._gen_cart_drawer()
         files['src/components/BlogGrid.jsx'] = self._gen_blog_grid()
         files['src/components/FAQ.jsx'] = self._gen_faq()
         files['src/components/ContactForm.jsx'] = self._gen_contact_form()
@@ -764,8 +769,10 @@ import Button from './Button.jsx';
 
 export default function ProductCard({
   title = '',
-  price = '$0.00',
-  rating = 5,
+  price = '',
+  compareAt = null,
+  category = '',
+  inStock = true,
   badge = '',
   image = null,
   onAddToCart,
@@ -774,18 +781,26 @@ export default function ProductCard({
   style = {},
   ...props
 }) {
+  const priceBlock = (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', justifyContent: 'center', margin: '0.5rem 0' }}>
+      <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--color-primary, #3b82f6)' }}>{price}</span>
+      {compareAt ? (
+        <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #94a3b8)', textDecoration: 'line-through' }}>{compareAt}</span>
+      ) : null}
+    </div>
+  );
   return (
     <Card
       title={title}
       image={image}
-      badge={badge}
+      badge={badge || category}
       variant="elevated"
       className={`product-card ${className}`}
       style={{ textAlign: 'center', ...style }}
       footer={
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <Button variant="primary" size="sm" onClick={onAddToCart} style={{ flex: 1 }}>
-            Add to Cart
+          <Button variant="primary" size="sm" onClick={onAddToCart} style={{ flex: 1 }} disabled={!inStock}>
+            {inStock ? 'Add to Cart' : 'Out of Stock'}
           </Button>
           <Button variant="outline" size="sm" href={href}>
             View
@@ -794,9 +809,10 @@ export default function ProductCard({
       }
       {...props}
     >
-      <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--color-primary, #3b82f6)', margin: '0.5rem 0' }}>
-        {price}
-      </div>
+      {priceBlock}
+      {inStock ? null : (
+        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted, #94a3b8)', margin: 0 }}>Currently unavailable</p>
+      )}
     </Card>
   );
 }'''
@@ -1016,6 +1032,7 @@ export default function FeatureGrid({
   subtitle = 'Everything you need to build next-generation web applications.',
   features = [],
   columns = 3,
+  ItemWrapper,
   className = '',
   style = {},
   ...props
@@ -1030,13 +1047,16 @@ export default function FeatureGrid({
           </header>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${columns === 4 ? '220px' : '280px'}, 1fr))`, gap: '2rem' }}>
-          {features.map((feat, idx) => (
-            <Card key={idx} title={feat.title} subtitle={feat.subtitle} variant="elevated">
-              <p style={{ fontSize: '0.95rem', color: 'var(--color-text-muted, #94a3b8)', margin: 0, lineHeight: 1.6 }}>
-                {feat.description}
-              </p>
-            </Card>
-          ))}
+          {features.map((feat, idx) => {
+            const card = (
+              <Card title={feat.title} subtitle={feat.subtitle} variant="elevated">
+                <p style={{ fontSize: '0.95rem', color: 'var(--color-text-muted, #94a3b8)', margin: 0, lineHeight: 1.6 }}>
+                  {feat.description}
+                </p>
+              </Card>
+            );
+            return ItemWrapper ? <ItemWrapper key={idx}>{card}</ItemWrapper> : React.cloneElement(card, { key: idx });
+          })}
         </div>
       </div>
     </section>
@@ -1051,6 +1071,8 @@ export default function ProductGrid({
   title = 'Featured Products',
   products = [],
   columns = 4,
+  loading = false,
+  emptyMessage = 'No products found.',
   className = '',
   style = {},
   ...props
@@ -1059,21 +1081,264 @@ export default function ProductGrid({
     <section className={`product-grid ${className}`} style={{ padding: 'var(--spacing-2xl, 4rem) 0', width: '100%', ...style }} role="region" aria-label="Product Catalog Grid" {...props}>
       <div className="container">
         {title && <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '2.5rem', textAlign: 'center' }}>{title}</h2>}
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(240px, 1fr))`, gap: '2rem' }}>
-          {products.map((prod, idx) => (
-            <ProductCard
-              key={idx}
-              title={prod.title}
-              price={prod.price}
-              badge={prod.badge}
-              image={prod.image}
-              onAddToCart={prod.onAddToCart}
-              href={prod.href}
-            />
-          ))}
+        {loading ? (
+          <p role="status" style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--color-text-muted, #94a3b8)' }}>Loading products…</p>
+        ) : products.length === 0 ? (
+          <p style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--color-text-muted, #94a3b8)' }}>{emptyMessage}</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(240px, 1fr))`, gap: '2rem' }}>
+            {products.map((prod, idx) => (
+              <ProductCard
+                key={prod.id != null ? prod.id : idx}
+                title={prod.title}
+                price={prod.price}
+                compareAt={prod.compareAt}
+                category={prod.category}
+                inStock={prod.inStock !== false}
+                badge={prod.badge}
+                image={prod.image}
+                onAddToCart={prod.onAddToCart}
+                href={prod.href}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}'''
+
+    def _gen_catalog_grid(self) -> str:
+        """Phase 47.41: presentation-only catalog surface. Receives the
+        resolved product collection + state; owns NO search/filter/sort/
+        pagination/cart state (the page organism owns discovery state)."""
+        return '''import React from 'react';
+import ProductGrid from './ProductGrid.jsx';
+
+export default function CatalogGrid({
+  products = [],
+  loading = false,
+  emptyMessage = 'No products match your filters.',
+  title = 'Shop All Products',
+  resultCount = null,
+  className = '',
+  style = {},
+  ...props
+}) {
+  return (
+    <section className={`catalog-grid ${className}`} style={{ padding: 'var(--spacing-lg, 2rem) 0', width: '100%', ...style }} role="region" aria-label="Product Catalog" {...props}>
+      <div className="container">
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: 0 }}>{title}</h2>
+          {resultCount != null && !loading ? (
+            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #94a3b8)' }}>{resultCount} products</span>
+          ) : null}
+        </div>
+        <ProductGrid
+          title=""
+          products={products}
+          loading={loading}
+          emptyMessage={emptyMessage}
+        />
+      </div>
+    </section>
+  );
+}'''
+
+    def _gen_product_detail(self) -> str:
+        """Phase 47.41: reusable product-detail organism. Presentation +
+        gallery + add-to-cart callback only — no cart state, no routing."""
+        return '''import React, { useState } from 'react';
+import Button from './Button.jsx';
+import Badge from './Badge.jsx';
+import Card from './Card.jsx';
+
+export default function ProductDetail({
+  product = null,
+  loading = false,
+  error = null,
+  onAddToCart,
+  onBack,
+  className = '',
+  style = {},
+  ...props
+}) {
+  const [activeImage, setActiveImage] = useState(0);
+  const images = (product && product.images) || (product && product.image ? [product.image] : []);
+  const current = images[activeImage] || images[0] || null;
+
+  if (loading) {
+    return (
+      <section className={`product-detail ${className}`} style={{ padding: 'var(--spacing-xl, 3rem) 0', width: '100%', ...style }} role="region" aria-label="Product detail" {...props}>
+        <div className="container"><p role="status">Loading product…</p></div>
+      </section>
+    );
+  }
+  if (error || !product) {
+    return (
+      <section className={`product-detail ${className}`} style={{ padding: 'var(--spacing-xl, 3rem) 0', width: '100%', ...style }} role="region" aria-label="Product detail" {...props}>
+        <div className="container">
+          <p role="alert" style={{ color: 'var(--color-text-muted, #94a3b8)' }}>
+            {error || 'This product could not be found.'}
+          </p>
+          {onBack ? <Button variant="outline" size="sm" onClick={onBack}>Back to catalog</Button> : null}
+        </div>
+      </section>
+    );
+  }
+
+  const price = product.price != null ? String(product.price) : '';
+  return (
+    <section className={`product-detail ${className}`} style={{ padding: 'var(--spacing-xl, 3rem) 0', width: '100%', ...style }} role="region" aria-label={`Product detail: ${product.name}`} {...props}>
+      <div className="container">
+        {onBack ? (
+          <Button variant="outline" size="sm" onClick={onBack} style={{ marginBottom: '1.5rem' }}>Back to catalog</Button>
+        ) : null}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem', alignItems: 'start' }}>
+          <div>
+            <div style={{ borderRadius: 'var(--radius-md, 8px)', overflow: 'hidden', background: 'var(--color-surface, #f1f5f9)', border: '1px solid var(--color-border, #e2e8f0)', marginBottom: '1rem' }}>
+              {current ? (
+                <img src={current.src || current} alt={current.alt || product.name} style={{ width: '100%', height: 'auto', display: 'block' }} />
+              ) : (
+                <div style={{ minHeight: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted, #94a3b8)', fontSize: '0.9rem' }}>No image available</div>
+              )}
+            </div>
+            {images.length > 1 ? (
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }} role="tablist" aria-label="Product images">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveImage(idx)}
+                    role="tab"
+                    aria-selected={idx === activeImage ? 'true' : 'false'}
+                    aria-label={`View image ${idx + 1}`}
+                    style={{
+                      width: 64, height: 64, borderRadius: 'var(--radius-md, 8px)', overflow: 'hidden',
+                      border: idx === activeImage ? '2px solid var(--color-primary, #3b82f6)' : '1px solid var(--color-border, #e2e8f0)',
+                      padding: 0, cursor: 'pointer', background: 'var(--color-surface, #f1f5f9)',
+                    }}
+                  >
+                    <img src={img.src || img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <Card title={product.name} subtitle={product.category || ''} badge={product.sku || ''} variant="outlined">
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', margin: '1rem 0' }}>
+              <span style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-primary, #3b82f6)' }}>{price}</span>
+              {product.compareAt ? (
+                <span style={{ fontSize: '1rem', color: 'var(--color-text-muted, #94a3b8)', textDecoration: 'line-through' }}>{String(product.compareAt)}</span>
+              ) : null}
+            </div>
+            {product.inStock === false ? (
+              <p style={{ color: 'var(--color-text-muted, #94a3b8)', fontSize: '0.9rem' }}>Currently unavailable</p>
+            ) : (
+              <p style={{ fontSize: '0.9rem' }}>In stock — ships within 2 business days.</p>
+            )}
+            {product.description ? (
+              <p style={{ fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--color-text-muted, #94a3b8)' }}>{product.description}</p>
+            ) : null}
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <Button variant="primary" onClick={onAddToCart} disabled={product.inStock === false}>
+                Add to Cart
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
     </section>
+  );
+}'''
+
+    def _gen_cart_drawer(self) -> str:
+        """Phase 47.41: reusable cart surface. Pure presentation + cart
+        state callbacks (the app-level cart owner provides them)."""
+        return '''import React from 'react';
+import Button from './Button.jsx';
+
+export default function CartDrawer({
+  open = false,
+  items = [],
+  subtotal = '',
+  onIncrement,
+  onDecrement,
+  onRemove,
+  onContinueShopping,
+  onClose,
+  className = '',
+  style = {},
+  ...props
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className={`cart-drawer-backdrop ${className}`}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 900, display: 'flex', justifyContent: 'flex-end', ...style }}
+      onClick={onClose}
+      {...props}
+    >
+      <aside
+        role="dialog"
+        aria-label="Shopping cart"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 'min(420px, 100vw)', height: '100vh', background: 'var(--color-background, #fff)',
+          display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-lg, 0 10px 30px rgba(0,0,0,0.2))',
+        }}
+      >
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border, #e2e8f0)' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>Your Cart</h2>
+          <Button variant="ghost" size="sm" onClick={onClose} ariaLabel="Close cart">Close</Button>
+        </header>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+          {items.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--color-text-muted, #94a3b8)' }}>
+              <p style={{ marginBottom: '1rem' }}>Your cart is empty.</p>
+              {onContinueShopping ? (
+                <Button variant="outline" size="sm" onClick={onContinueShopping}>Continue shopping</Button>
+              ) : null}
+            </div>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {items.map((item) => (
+                <li key={item.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border, #e2e8f0)' }}>
+                  {item.image ? (
+                    <img src={item.image.src || item.image} alt={item.name} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--color-border, #e2e8f0)' }} />
+                  ) : (
+                    <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-md, 8px)', background: 'var(--color-surface, #f1f5f9)', border: '1px solid var(--color-border, #e2e8f0)' }} />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '0.925rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: 'var(--color-text-muted, #94a3b8)' }}>{item.price}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Button variant="outline" size="sm" onClick={() => onDecrement && onDecrement(item.id)} ariaLabel={`Decrease quantity of ${item.name}`} disabled={false}>−</Button>
+                    <span aria-label={`Quantity of ${item.name}`} style={{ minWidth: 24, textAlign: 'center', fontSize: '0.9rem' }}>{item.quantity}</span>
+                    <Button variant="outline" size="sm" onClick={() => onIncrement && onIncrement(item.id)} ariaLabel={`Increase quantity of ${item.name}`} disabled={false}>+</Button>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => onRemove && onRemove(item.id)} ariaLabel={`Remove ${item.name} from cart`}>Remove</Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {items.length > 0 ? (
+          <footer style={{ borderTop: '1px solid var(--color-border, #e2e8f0)', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>Subtotal</span>
+              <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--color-primary, #3b82f6)' }}>{subtotal}</span>
+            </div>
+            {onContinueShopping ? (
+              <Button variant="outline" onClick={onContinueShopping}>Continue shopping</Button>
+            ) : null}
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #94a3b8)', margin: 0 }}>
+              Checkout is not available in this validation build.
+            </p>
+          </footer>
+        ) : null}
+      </aside>
+    </div>
   );
 }'''
 
@@ -1784,6 +2049,9 @@ export { default as Footer } from './Footer.jsx';
 export { default as Hero } from './Hero.jsx';
 export { default as FeatureGrid } from './FeatureGrid.jsx';
 export { default as ProductGrid } from './ProductGrid.jsx';
+export { default as CatalogGrid } from './CatalogGrid.jsx';
+export { default as ProductDetail } from './ProductDetail.jsx';
+export { default as CartDrawer } from './CartDrawer.jsx';
 export { default as BlogGrid } from './BlogGrid.jsx';
 export { default as FAQ } from './FAQ.jsx';
 export { default as ContactForm } from './ContactForm.jsx';

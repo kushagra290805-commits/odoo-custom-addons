@@ -137,6 +137,13 @@ class ValidationEngine(BaseGenerationEngine):
             "validation_issues_count": len(issues),
             "build_acceptance": build_evidence,
         }
+        # Phase 47.40: the ThemeEngine visual fingerprint rides the
+        # existing validation evidence path (QA/reproducibility) — no
+        # separate registry, no arbitrary diversity score.
+        fingerprint = (getattr(artifact, 'generation_metadata', None)
+                       or {}).get('visual_fingerprint')
+        if isinstance(fingerprint, dict):
+            metadata["visual_fingerprint"] = dict(fingerprint)
         if build_evidence.get("failed"):
             return EngineExecutionResult(
                 success=False,

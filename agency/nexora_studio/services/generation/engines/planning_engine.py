@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 
 DOMAIN_TEMPLATES = {
     "SaaS": [{"path": "/", "name": "Home"}, {"path": "/pricing", "name": "Pricing"}, {"path": "/contact", "name": "Contact"}],
-    "Ecommerce": [{"path": "/", "name": "Home"}, {"path": "/products", "name": "Products"}, {"path": "/cart", "name": "Cart"}, {"path": "/checkout", "name": "Checkout"}],
+    "Ecommerce": [{"path": "/", "name": "Home"}, {"path": "/products", "name": "Products"}, {"path": "/contact", "name": "Contact"}],
     "Portfolio": [{"path": "/", "name": "Home"}, {"path": "/about", "name": "About"}, {"path": "/projects", "name": "Projects"}],
     "Agency": [{"path": "/", "name": "Home"}, {"path": "/services", "name": "Services"}, {"path": "/contact", "name": "Contact"}],
     "Real Estate": [{"path": "/", "name": "Home"}, {"path": "/properties", "name": "Properties"}, {"path": "/agents", "name": "Agents"}],
@@ -115,11 +115,14 @@ class PlanningEngine(BaseGenerationEngine):
         new_generation_metadata["modular_blueprint"] = dataclasses.asdict(modular_blueprint) if dataclasses.is_dataclass(modular_blueprint) else {}
         # Phase 47.24: the selected pattern travels on the artifact for
         # ArchitectureEngine (sections) and AssetEngine (image intents).
+        # Phase 47.40: secondary_pages (route-purpose compositions) ride
+        # the same pattern metadata bus.
         new_generation_metadata["page_pattern"] = {
             'id': pattern.get('id'),
             'reason': pattern.get('reason'),
             'home_sections': pattern.get('home_sections'),
             'secondary_sections': pattern.get('secondary_sections'),
+            'secondary_pages': pattern.get('secondary_pages'),
         }
 
         # VERY IMPORTANT: Downstream legacy engines have been migrated!

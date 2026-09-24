@@ -32,6 +32,13 @@ PAGE_PATTERN_CATALOG: Dict[str, Dict[str, Any]] = {
         'suitable_domains': ['Agency'],
         'home_sections': ['Hero', 'ServicesGrid', 'Testimonial', 'Gallery', 'ContactCTA'],
         'secondary_sections': ['Hero', 'Content'],
+        # Phase 47.40: page-purpose-aware secondary compositions —
+        # deterministic per route, built ONLY from shared builders.
+        'secondary_pages': {
+            'services': ['Hero', 'ServicesGrid', 'Testimonial'],
+            'work': ['Hero', 'Gallery', 'Testimonial'],
+            'contact': ['Hero', 'Content'],
+        },
         'reason_stub': [
             'agency domain classification',
             'services capability present',
@@ -44,6 +51,11 @@ PAGE_PATTERN_CATALOG: Dict[str, Dict[str, Any]] = {
         'suitable_domains': ['Consulting', 'Healthcare', 'Education', 'Real Estate'],
         'home_sections': ['Hero', 'ServicesGrid', 'Testimonial', 'ContactCTA'],
         'secondary_sections': ['Hero', 'Content'],
+        'secondary_pages': {
+            'services': ['Hero', 'ServicesGrid', 'Testimonial'],
+            'about': ['Hero', 'About', 'Testimonial'],
+            'contact': ['Hero', 'Content'],
+        },
         'reason_stub': [
             'professional service domain classification',
             'services capability present',
@@ -55,6 +67,12 @@ PAGE_PATTERN_CATALOG: Dict[str, Dict[str, Any]] = {
         'suitable_domains': ['Restaurant'],
         'home_sections': ['Hero', 'About', 'MenuHighlights', 'Gallery', 'Testimonial', 'ContactCTA'],
         'secondary_sections': ['Hero', 'Content'],
+        # Phase 47.40: menu/reservation-purpose compositions.
+        'secondary_pages': {
+            'menu': ['Hero', 'MenuHighlights', 'Gallery'],
+            'reservations': ['Hero', 'About', 'ContactCTA'],
+            'contact': ['Hero', 'Content'],
+        },
         'reason_stub': [
             'restaurant domain classification',
             'about/story section precedes the offer (information architecture)',
@@ -63,17 +81,62 @@ PAGE_PATTERN_CATALOG: Dict[str, Dict[str, Any]] = {
             'testimonial content appropriate',
         ],
     },
+    'portfolio': {
+        'id': 'portfolio',
+        'suitable_domains': ['Portfolio'],
+        'home_sections': ['Hero', 'About', 'Gallery', 'Testimonial', 'ContactCTA'],
+        'secondary_sections': ['Hero', 'Content'],
+        # Phase 47.40: project/about-purpose compositions — the body of
+        # work leads on the projects page; the story leads on about.
+        'secondary_pages': {
+            'projects': ['Hero', 'Gallery', 'Testimonial'],
+            'work': ['Hero', 'Gallery', 'Testimonial'],
+            'about': ['Hero', 'About', 'Gallery'],
+            'contact': ['Hero', 'Content'],
+        },
+        'reason_stub': [
+            'portfolio domain classification',
+            'about/story precedes the work (artist statement)',
+            'gallery presents the body of work as primary content',
+            'testimonial from editors/clients appropriate',
+        ],
+    },
     'saas_product': {
         'id': 'saas_product',
-        'suitable_domains': ['SaaS', 'Ecommerce', 'Portfolio'],
+        'suitable_domains': ['SaaS'],
         'home_sections': ['Hero', 'FeatureGrid', 'Pricing', 'Testimonial', 'FAQ', 'ContactCTA'],
         'secondary_sections': ['Hero', 'Content'],
+        # Phase 47.40: product/value/pricing/FAQ-purpose compositions.
+        'secondary_pages': {
+            'pricing': ['Hero', 'Pricing', 'FAQ'],
+            'features': ['Hero', 'FeatureGrid', 'FAQ'],
+            'contact': ['Hero', 'Content'],
+        },
         'reason_stub': [
             'product/service domain classification',
             'feature grid communicates capabilities (not generic services)',
             'pricing plans are the primary conversion path for SaaS',
             'FAQ addresses evaluation-stage objections',
             'testimonial content appropriate',
+        ],
+    },
+    'ecommerce': {
+        'id': 'ecommerce',
+        'suitable_domains': ['Ecommerce'],
+        'home_sections': ['Hero', 'MenuHighlights', 'About', 'Gallery', 'ContactCTA'],
+        'secondary_sections': ['Hero', 'MenuHighlights'],
+        # Phase 47.40: product-discovery-purpose compositions.
+        'secondary_pages': {
+            'products': ['Hero', 'MenuHighlights', 'Gallery'],
+            'shop': ['Hero', 'MenuHighlights', 'Gallery'],
+            'collections': ['Hero', 'MenuHighlights', 'About'],
+            'contact': ['Hero', 'About', 'ContactCTA'],
+        },
+        'reason_stub': [
+            'ecommerce domain classification',
+            'product/catalog grid is the primary conversion path (not SaaS pricing)',
+            'craft/about precedes the offer (provider trust)',
+            'gallery imagery supports product storytelling',
         ],
     },
     'default': {
@@ -92,6 +155,8 @@ PAGE_PATTERN_CATALOG: Dict[str, Dict[str, Any]] = {
 _KEYWORD_ROUTES = [
     ('restaurant', ('restaurant', 'cafe', 'coffee', 'bistro', 'bakery',
                     'catering', 'pizzeria')),
+    ('ecommerce', ('ecommerce', 'shop', 'store', 'ceramics', 'textiles',
+                   'goods', 'product', 'catalog', 'retail')),
     ('saas_product', ('saas', 'software', 'platform', 'startup', 'product',
                       'ecommerce', 'shop', 'store', 'portfolio')),
     ('professional_service', ('clinic', 'consulting', 'law', 'legal',
@@ -135,9 +200,33 @@ def select_pattern(domain: str, brief_text: str = '') -> Dict[str, Any]:
     return out
 
 
-def pattern_sections(pattern: Optional[Dict[str, Any]], is_home: bool) -> List[str]:
-    """Section sequence for a page under the selected pattern."""
+def _route_purpose(path: str) -> str:
+    """Phase 47.40: bounded route→purpose keyword ('/menu' → 'menu').
+    The first path segment is the page's purpose token; unknown routes
+    have no purpose (the pattern's default secondary composition
+    applies)."""
+    segments = [s for s in str(path or '').strip('/').split('/') if s]
+    if not segments:
+        return ''
+    return segments[0].lower()
+
+
+def pattern_sections(pattern: Optional[Dict[str, Any]], is_home: bool,
+                     path: str = '') -> List[str]:
+    """Section sequence for a page under the selected pattern.
+
+    Phase 47.40: secondary pages resolve their composition from the
+    pattern's ``secondary_pages`` table by route PURPOSE (deterministic
+    page-purpose-aware composition — no randomization, no forced
+    sections; every sequence references only the shared builders).
+    Falls back to the pattern's ``secondary_sections`` for routes
+    without a purpose entry."""
     if not pattern:
         return ['Hero', 'Content']
-    key = 'home_sections' if is_home else 'secondary_sections'
-    return list(pattern.get(key) or ['Hero', 'Content'])
+    if is_home:
+        return list(pattern.get('home_sections') or ['Hero', 'Content'])
+    purpose = _route_purpose(path)
+    secondary_pages = pattern.get('secondary_pages') or {}
+    if purpose and purpose in secondary_pages:
+        return list(secondary_pages[purpose])
+    return list(pattern.get('secondary_sections') or ['Hero', 'Content'])

@@ -64,7 +64,8 @@ _NATIVE_EXPOSURE = {
         'domains': ['agency', 'saas', 'restaurant', 'professional_service'],
         'organism': True,
         'props': {'title': 'str', 'subtitle': 'str',
-                  'features': 'list[{title, subtitle, description}]'},
+                  'features': 'list[{title, subtitle, description}]',
+                  'ItemWrapper': 'component?'},
     },
     'Testimonial': {
         'category': 'molecule',

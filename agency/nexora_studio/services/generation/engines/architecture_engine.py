@@ -63,7 +63,12 @@ class ArchitectureEngine(BaseGenerationEngine):
                 if path == "layout_root": continue
                 page_id = f"page_{path.replace('/', '_').strip('_') or 'home'}"
 
-                sections = pattern_sections(page_pattern, is_home=(path == '/'))
+                # Phase 47.40: page-purpose-aware composition — secondary
+                # pages resolve their section sequence from the pattern's
+                # secondary_pages table by route purpose (deterministic;
+                # the pattern catalog remains the composition owner).
+                sections = pattern_sections(page_pattern, is_home=(path == '/'),
+                                            path=path)
 
                 # Phase 47.36: capability-aware lead binding. When the
                 # Phase 47.32 Project Capability Contract includes 'leads',

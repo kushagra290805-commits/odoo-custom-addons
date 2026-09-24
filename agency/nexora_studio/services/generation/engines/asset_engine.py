@@ -216,6 +216,11 @@ class AssetEngine(BaseGenerationEngine):
             pattern = artifact.generation_metadata.get('page_pattern') or {}
             all_sections = list(pattern.get('home_sections') or []) + \
                 list(pattern.get('secondary_sections') or [])
+            # Phase 47.40: route-purpose secondary compositions contribute
+            # their sections too (bounded: same shared-builder vocabulary).
+            for purpose_sections in (pattern.get('secondary_pages') or {}).values():
+                if isinstance(purpose_sections, list):
+                    all_sections.extend(str(s) for s in purpose_sections)
             # Fallback: read the actual architecture sections when the
             # pattern metadata is absent (e.g. direct engine tests).
             if not all_sections:
@@ -311,10 +316,20 @@ class AssetEngine(BaseGenerationEngine):
                             'context': {'section_type': 'Gallery', 'page': 'home',
                                         'domain': subject}})
         # Section-specific intents: subject + short section phrase.
+        # Phase 47.39A (verified defect #10/ProductGrid relevance): the
+        # MenuHighlights(ProductGrid) section is product-catalog for
+        # Ecommerce/ceramics cases — a single textural term must not force
+        # the pool toward food when the subject is clearly non-food. The
+        # remapping is bounded to that subject/section pair; no new
+        # provider.
+        is_product_subject = any(
+            tok in str(subject or '').lower()
+            for tok in ('ecommerce', 'ceramic', 'textile', 'store', 'shop', 'product', 'catalog', 'goods')
+        )
         section_contexts = {
             'ServicesGrid': 'team workspace',
             'FeatureGrid': 'software dashboard interface',
-            'MenuHighlights': 'food dishes',
+            'MenuHighlights': 'product display' if is_product_subject else 'food dishes',
             'Pricing': 'pricing plans',
             'FAQ': 'customer support',
             'Testimonial': 'happy customer',

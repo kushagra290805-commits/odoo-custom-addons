@@ -701,6 +701,253 @@ class ClientEnvironmentService(models.AbstractModel):
             return self._client_error('CLIENT_DB_UNAVAILABLE')
         return {'ok': True, 'products': products}
 
+    # ------------------------------------------------------------------
+    # Phase 47.41: bounded commerce catalog contracts (capability:
+    # products). Same prelude, same agency guard, same payload-whitelist
+    # discipline as client_api_create_lead. No arbitrary model/method/
+    # field/domain/db selectors exist on this path — the browser may only
+    # express bounded catalog intent (query/category/sort/pagination),
+    # never Odoo search primitives.
+    # ------------------------------------------------------------------
+
+    # Bounded sort vocabulary (platform data — never client-supplied SQL).
+    _CATALOG_SORTS = {
+        'relevance': 'write_date desc, id desc',
+        'name_asc': 'name asc, id asc',
+        'name_desc': 'name desc, id desc',
+        'price_asc': 'list_price asc, id asc',
+        'price_desc': 'list_price desc, id desc',
+    }
+
+    @api.model
+    def _client_catalog_domain(self, payload):
+        """Deterministic bounded domain for the catalog operation.
+
+        Returns (domain, error_code). Only literal Odoo terms built from
+        validated scalars — a client can never inject a domain leaf.
+        """
+        domain = []
+        query = payload.get('query')
+        if query:
+            # Bounded substring search on Odoo's own name search field set.
+            domain.append(('name', 'ilike', query))
+        category_id = payload.get('category_id')
+        if category_id is not None:
+            domain.append(('categ_id', '=', category_id))
+        if payload.get('in_stock_only'):
+            domain.append(('type', '=', 'consu'))
+        return domain, None
+
+    @api.model
+    def _client_catalog_projection(self, record):
+        """Explicit product projection — bounded fields only (Phase 47.41).
+
+        Demo/rating metadata is clearly separated from real Odoo facts:
+        nothing here fabricates reviews. `rating_*` fields are absent
+        unless the client DB genuinely carries them.
+        """
+        description = record.description_sale or record.description or ''
+        image = ''
+        try:
+            if record.image_1920:
+                # Attachment-backed image route (same-origin BFF route,
+                # Phase 47.41) — never a giant base64 payload.
+                image = '/api/v1/client/products/%s/image' % record.id
+        except Exception:
+            image = ''
+        return {
+            'id': record.id,
+            'name': record.display_name,
+            'sku': record.default_code or '',
+            'price': record.list_price,
+            'compare_at_price': None,
+            'category_id': record.categ_id.id if record.categ_id else None,
+            'category': record.categ_id.display_name if record.categ_id else '',
+            'description': description[:500] if description else '',
+            'in_stock': True,
+            'image': image,
+        }
+
+    @api.model
+    def _client_catalog_params(self, payload):
+        """Validate the bounded catalog parameter contract.
+
+        Returns (params dict, error_code). Every parameter is optional;
+        every value is bounded and type-checked (no domains, no SQL, no
+        model/method names can pass through these keys).
+        """
+        params = {
+            'query': '', 'category_id': None, 'sort': 'relevance',
+            'limit': 24, 'offset': 0, 'in_stock_only': False,
+        }
+        if payload.get('query') is not None:
+            query = payload.get('query')
+            if not isinstance(query, str) or len(query) > 80:
+                return None, 'CLIENT_REQUEST_INVALID'
+            params['query'] = query.strip()
+        if payload.get('category_id') is not None:
+            try:
+                params['category_id'] = int(payload.get('category_id'))
+            except (TypeError, ValueError):
+                return None, 'CLIENT_REQUEST_INVALID'
+        if payload.get('sort') is not None:
+            sort = payload.get('sort')
+            if sort not in self._CATALOG_SORTS:
+                return None, 'CLIENT_REQUEST_INVALID'
+            params['sort'] = sort
+        if payload.get('limit') is not None:
+            try:
+                limit = int(payload.get('limit'))
+            except (TypeError, ValueError):
+                return None, 'CLIENT_REQUEST_INVALID'
+            if limit < 1 or limit > 100:
+                return None, 'CLIENT_REQUEST_INVALID'
+            params['limit'] = limit
+        if payload.get('offset') is not None:
+            try:
+                offset = int(payload.get('offset'))
+            except (TypeError, ValueError):
+                return None, 'CLIENT_REQUEST_INVALID'
+            if offset < 0 or offset > 10000:
+                return None, 'CLIENT_REQUEST_INVALID'
+            params['offset'] = offset
+        if payload.get('in_stock_only') is not None:
+            params['in_stock_only'] = bool(payload.get('in_stock_only'))
+        return params, None
+
+    @api.model
+    def client_api_catalog(self, token, payload):
+        """Client API (capability: products): bounded catalog query.
+
+        Search/category/sort/pagination with an explicit projection and a
+        truthful total count. The resolved client environment comes from
+        the token (server-derived); no db selector exists.
+        """
+        env_record, error = self._client_api_prelude(token, capability='products')
+        if error:
+            return error
+        if not self._client_module_installed(env_record.db_name, 'product'):
+            return self._client_error('CLIENT_CAPABILITY_UNAVAILABLE')
+        if not isinstance(payload, dict):
+            return self._client_error('CLIENT_REQUEST_INVALID')
+        params, error = self._client_catalog_params(payload)
+        if error:
+            return self._client_error(error)
+        domain, error = self._client_catalog_domain(params)
+        if error:
+            return self._client_error(error)
+        order = self._CATALOG_SORTS[params['sort']]
+        try:
+            registry, cursor, EnvironmentCls = self._client_registry_env(env_record.db_name)
+            with cursor as cr:
+                cenv = EnvironmentCls(cr, odoo.SUPERUSER_ID, {})
+                Product = cenv['product.product']
+                total = Product.search_count(domain)
+                records = Product.search(
+                    domain, limit=params['limit'],
+                    offset=params['offset'], order=order)
+                products = [self._client_catalog_projection(r)
+                            for r in records]
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            _logger.error('client.catalog_failed (env_id=%s): %s',
+                          env_record.id, exc)
+            return self._client_error('CLIENT_DB_UNAVAILABLE')
+        return {'ok': True, 'products': products, 'total': total,
+                'limit': params['limit'], 'offset': params['offset']}
+
+    @api.model
+    def client_api_product_detail(self, token, product_id):
+        """Client API (capability: products): ONE product's bounded detail.
+
+        The requested product is read from the RESOLVED client
+        environment only — a product id from another tenant simply does
+        not exist in this DB (structural tenant isolation).
+        """
+        env_record, error = self._client_api_prelude(token, capability='products')
+        if error:
+            return error
+        if not self._client_module_installed(env_record.db_name, 'product'):
+            return self._client_error('CLIENT_CAPABILITY_UNAVAILABLE')
+        try:
+            product_id = int(product_id)
+        except (TypeError, ValueError):
+            return self._client_error('CLIENT_REQUEST_INVALID')
+        try:
+            registry, cursor, EnvironmentCls = self._client_registry_env(env_record.db_name)
+            with cursor as cr:
+                cenv = EnvironmentCls(cr, odoo.SUPERUSER_ID, {})
+                record = cenv['product.product'].browse(product_id).exists()
+                if not record:
+                    return self._client_error('CLIENT_REQUEST_INVALID')
+                product = self._client_catalog_projection(record)
+                description = (record.description_sale
+                               or record.description or '')
+                product['description_full'] = description[:4000] if description else ''
+        except Exception as exc:
+            _logger.error('client.product_detail_failed (env_id=%s): %s',
+                          env_record.id, exc)
+            return self._client_error('CLIENT_DB_UNAVAILABLE')
+        return {'ok': True, 'product': product}
+
+    @api.model
+    def client_api_product_image(self, token, product_id):
+        """Client API (capability: products): ONE product's image bytes.
+
+        Streams the stored product image through the BFF (the browser
+        carries no credential; the same-origin proxy attaches it) so
+        catalog payloads never embed giant base64 blobs.
+        """
+        env_record, error = self._client_api_prelude(token, capability='products')
+        if error:
+            return error
+        if not self._client_module_installed(env_record.db_name, 'product'):
+            return self._client_error('CLIENT_CAPABILITY_UNAVAILABLE')
+        try:
+            product_id = int(product_id)
+        except (TypeError, ValueError):
+            return self._client_error('CLIENT_REQUEST_INVALID')
+        try:
+            registry, cursor, EnvironmentCls = self._client_registry_env(env_record.db_name)
+            with cursor as cr:
+                cenv = EnvironmentCls(cr, odoo.SUPERUSER_ID, {})
+                record = cenv['product.product'].browse(product_id).exists()
+                if not record or not record.image_1920:
+                    return self._client_error('CLIENT_REQUEST_INVALID')
+                image = record.image_1920
+        except Exception as exc:
+            _logger.error('client.product_image_failed (env_id=%s): %s',
+                          env_record.id, exc)
+            return self._client_error('CLIENT_DB_UNAVAILABLE')
+        return {'ok': True, 'image': image}
+
+    @api.model
+    def client_api_list_categories(self, token):
+        """Client API (capability: products): the client DB's product
+        categories (bounded projection: id, name, product_count)."""
+        env_record, error = self._client_api_prelude(token, capability='products')
+        if error:
+            return error
+        if not self._client_module_installed(env_record.db_name, 'product'):
+            return self._client_error('CLIENT_CAPABILITY_UNAVAILABLE')
+        try:
+            registry, cursor, EnvironmentCls = self._client_registry_env(env_record.db_name)
+            with cursor as cr:
+                cenv = EnvironmentCls(cr, odoo.SUPERUSER_ID, {})
+                categories = cenv['product.category'].search(
+                    [], order='name asc, id asc')
+                result = [{
+                    'id': c.id,
+                    'name': c.display_name,
+                    'product_count': c.product_count,
+                } for c in categories]
+        except Exception as exc:
+            _logger.error('client.categories_failed (env_id=%s): %s',
+                          env_record.id, exc)
+            return self._client_error('CLIENT_DB_UNAVAILABLE')
+        return {'ok': True, 'categories': result}
+
     @api.model
     def client_api_create_lead(self, token, payload):
         """Client API (capability: leads): create ONE crm.lead in the CLIENT DB.

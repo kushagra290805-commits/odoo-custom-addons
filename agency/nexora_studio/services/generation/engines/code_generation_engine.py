@@ -50,7 +50,13 @@ _SCAFFOLD_COMPONENT_IDENTIFIERS = {
 # provider-scaffold clientApi module (src/lib/clientApi.js) and the native
 # ContactForm organism. Only materialize in sections when the Project
 # Capability Contract enables the binding.
-_CLIENT_API_IDENTIFIERS = {'clientApi', 'useClientProducts', 'ContactForm'}
+# Phase 47.41: the app-level cart owner (src/lib/cart.js) joins the same
+# scaffold-identifier contract (CartProvider/useCart/CartDrawer), plus the
+# commerce organisms the catalog surface composes.
+_CLIENT_API_IDENTIFIERS = {'clientApi', 'useClientProducts', 'ContactForm',
+                           'CartProvider', 'useCart', 'CartDrawer',
+                           'CatalogGrid', 'ProductDetail', 'Pagination',
+                           'Button', 'Badge'}
 
 # Manifest attribution for sections composed from scaffold organisms when
 # no matched component carries the attribution.
@@ -264,7 +270,8 @@ class CodeGenerationEngine(BaseGenerationEngine):
                         built = self._build_pattern_section(
                             section, section_name, artifact, page_content,
                             section_index, selected_component,
-                            external_imports, stock_images, valid_routes)
+                            external_imports, stock_images, valid_routes,
+                            page_path=path)
                         if built is None:
                             # Gallery without images is skipped truthfully.
                             _logger.info(
@@ -437,7 +444,8 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
             # Keep the shipped Vite entry as the single application router,
             # wrapped in the site layout (nav + footer on every page).
-            self._apply_patch('src/App.jsx', self._build_app_entry(component_hierarchy), runtime)
+            self._apply_patch('src/App.jsx', self._build_app_entry(
+                component_hierarchy, artifact), runtime)
             tasks.append('src/App.jsx')
 
             # Phase 47.18 (Part G): materialize SEO metadata into the shipped
@@ -541,6 +549,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
                 'location': req.location or branding.get('location', ''),
                 'audience': req.target_audience,
                 'services': (branding.get('services') or [])[:8],
+                'supervisor_instruction': getattr(req, 'current_supervisor_instruction', ''),
             },
             'research': research,
             'knowledge': knowledge,
@@ -749,14 +758,62 @@ class CodeGenerationEngine(BaseGenerationEngine):
             for path in valid_routes
         )
         footer_location = " &middot; " + location if location else ""
+        # Phase 47.41: products-capable projects get the app-level cart
+        # entry point (nav badge + drawer) in the site chrome. The state
+        # itself is owned by CartProvider (src/lib/cart.js) mounted at the
+        # App entry — SiteLayout only CONSUMES it.
+        has_cart = 'products' in self._client_api_capabilities(artifact)
+        cart_header = ''
+        cart_footer_mount = ''
+        cart_state = ''
+        if has_cart:
+            cart_state = (
+                "  const cart = useCart();\n"
+                "  const [cartOpen, setCartOpen] = React.useState(false);\n"
+            )
+            cart_header = (
+                "        <button type=\"button\" onClick={() => setCartOpen(true)}\n"
+                "          aria-label={'Open cart (' + cart.count + ' items)'}\n"
+                "          style={{ fontFamily: 'var(--font-body, Inter, sans-serif)', fontSize: 14,\n"
+                "            letterSpacing: '0.04em', color: 'var(--color-secondary, #6f6a63)',\n"
+                "            background: 'transparent', border: '1px solid var(--color-border, #e5ded4)',\n"
+                "            borderRadius: 'var(--radius-md, 8px)', padding: '8px 14px', cursor: 'pointer',\n"
+                "            display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 88 }}>\n"
+                "          Cart\n"
+                "          <span aria-hidden=\"true\" style={{\n"
+                "            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',\n"
+                "            minWidth: 22, height: 22, borderRadius: 999, fontSize: 12,\n"
+                "            background: 'var(--color-primary, #2563eb)', color: 'var(--color-background, #ffffff)',\n"
+                "            fontWeight: 700 }}>{cart.count}</span>\n"
+                "        </button>\n"
+            )
+            cart_footer_mount = (
+                "      <CartDrawer\n"
+                "        open={cartOpen}\n"
+                "        items={cart.items.map(function(i) { return {\n"
+                "          id: i.id, name: i.name,\n"
+                "          price: i.price != null ? '$' + i.price.toFixed(2) : '',\n"
+                "          image: i.image ? { src: i.image, alt: i.name } : null,\n"
+                "          quantity: i.quantity } })}\n"
+                "        subtotal={'$' + cart.subtotalValue.toFixed(2)}\n"
+                "        onIncrement={cart.increment}\n"
+                "        onDecrement={cart.decrement}\n"
+                "        onRemove={cart.remove}\n"
+                "        onContinueShopping={function() { setCartOpen(false) }}\n"
+                "        onClose={function() { setCartOpen(false) }}\n"
+                "      />\n"
+            )
         # Phase 47.23 (ADR-0075): the site layout uses the theme's CSS
         # variables (fonts + palette) so the deterministic chrome is
         # typographically coherent with the theme materialized in tokens.css.
         return (
-            "import React from 'react'\n\n"
-            "const NAV_ITEMS = [" + nav_items + "]\n\n"
+            "import React from 'react'\n"
+            + ("import { useCart } from '../lib/cart.js'\n"
+               "import CartDrawer from './CartDrawer.jsx'\n" if has_cart else "")
+            + "\nconst NAV_ITEMS = [" + nav_items + "]\n\n"
             "function SiteLayout({ children }) {\n"
-            "  return (\n"
+            + cart_state
+            + "  return (\n"
             "    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>\n"
             "      <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'var(--color-background, #ffffff)',\n"
             "        borderBottom: '1px solid var(--color-border, #e5ded4)' }}>\n"
@@ -766,6 +823,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
             "          <a href=\"/\" style={{ fontFamily: 'var(--font-heading, Georgia, serif)', fontSize: 20,\n"
             "            color: 'var(--color-text, #1c1917)', textDecoration: 'none', letterSpacing: '0.02em' }}>\n"
             "            " + business.replace("'", "\\'") + "</a>\n"
+            "          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>\n"
             "          <nav aria-label=\"Primary\" style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>\n"
             "            {NAV_ITEMS.map(function(item) { return (\n"
             "              <a key={item.href} href={item.href}\n"
@@ -774,9 +832,12 @@ class CodeGenerationEngine(BaseGenerationEngine):
             "                  color: 'var(--color-secondary, #6f6a63)', textDecoration: 'none' }}>{item.label}</a>\n"
             "            ) })}\n"
             "          </nav>\n"
+            + cart_header +
+            "          </div>\n"
             "        </div>\n"
             "      </header>\n"
             "      <div style={{ flex: 1 }}>{children}</div>\n"
+            + cart_footer_mount +
             "      <footer style={{ background: 'var(--color-foreground, #1c1917)', color: 'var(--color-background, #faf9f7)',\n"
             "        padding: '56px 24px', marginTop: 'auto' }}>\n"
             "        <div style={{ maxWidth: 1120, margin: '0 auto', display: 'flex',\n"
@@ -996,6 +1057,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
     _STRING_RE = re.compile(r"'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"|`(?:\\.|[^`\\])*`")
     _COMMENT_RE = re.compile(r'/\*.*?\*/|//[^\n]*', re.DOTALL)
     _DECL_RE = re.compile(r'\b(?:function|const|let|var|class)\s+([A-Za-z_$][\w$]*)')
+    _DESTRUCT_RE = re.compile(r'\b(?:const|let|var)\s+\[([^\]]+)\]')
     _PARAMS_RE = re.compile(
         r'\bfunction\s*(?:[A-Za-z_$][\w$]*\s*)?\(([^)]*)\)|\(([^()]*)\)\s*=>')
     # JSX expression containers: a bare identifier (or the base of a member
@@ -1017,6 +1079,11 @@ class CodeGenerationEngine(BaseGenerationEngine):
         declared = set()
         for m in cls._DECL_RE.finditer(code):
             declared.add(m.group(1))
+        for m in cls._DESTRUCT_RE.finditer(code):
+            for part in m.group(1).split(','):
+                token = part.strip()
+                if token and re.match(r'^[A-Za-z_$][\w$]*$', token):
+                    declared.add(token)
         for m in cls._PARAMS_RE.finditer(code):
             group = m.group(1) or m.group(2) or ''
             for part in group.split(','):
@@ -1237,7 +1304,14 @@ class CodeGenerationEngine(BaseGenerationEngine):
         """Write source-backed component_tree nodes as their own modules
         under src/components/external/ (same ownership precedent as
         SiteLayout.jsx). Returns (known imports {identifier: import line},
-        evidence). The assembler â€” never the LLM â€” controls import paths."""
+        evidence). The assembler â€” never the LLM â€” controls import paths.
+
+        Phase 47.40: after the component_tree nodes, the visual
+        direction's curated effect components (ThemeEngine-owned decision,
+        bounded to zero-dependency React Bits entries) are materialized
+        FROM the already-discovered candidate_components the canonical
+        ComponentDiscoveryEngine published on the artifact — no new
+        fetch, no second registry, no arbitrary source."""
         known_imports: Dict[str, str] = {}
         evidence: List[Dict[str, Any]] = []
         for node in getattr(artifact.component_tree, 'nodes', None) or []:
@@ -1326,7 +1400,74 @@ class CodeGenerationEngine(BaseGenerationEngine):
                 'provider': metadata.get('source_provider'),
                 'kind': 'module',
             })
+        # Phase 47.40: curated effect components selected by the visual
+        # direction. Source comes EXCLUSIVELY from the candidates the
+        # canonical discovery already fetched; a missing candidate means
+        # the effect is truthfully not applied (the builders compose the
+        # plain fallback — deterministic either way).
+        for effect in self._visual_direction(artifact)['effects']:
+            if effect in known_imports:
+                continue
+            package = self._find_candidate_package(artifact, effect)
+            if package is None:
+                _logger.info("Visual-direction effect %s not present in the "
+                             "discovered candidates; plain composition used.",
+                             effect)
+                continue
+            metadata = dict(getattr(package, 'metadata', None) or {})
+            code = str(metadata.get('source_code') or '')
+            if not code:
+                continue
+            name = self._external_module_name(effect)
+            ext = self._external_module_ext(code, metadata)
+            named, default = self._parse_module_exports(code)
+            main = default or (named[0] if named else name)
+            for fname, content in (metadata.get('auxiliary_files') or {}).items():
+                side_rel = 'src/components/external/%s' % fname
+                try:
+                    runtime.workspace.write_file(side_rel, str(content or ''))
+                    evidence.append({'component_id': effect, 'path': side_rel,
+                                     'kind': 'auxiliary'})
+                except Exception as e:
+                    _logger.warning("Auxiliary file %s failed: %s", side_rel, e)
+            file_rel = 'src/components/external/%s.%s' % (name, ext)
+            try:
+                runtime.workspace.write_file(file_rel, code)
+            except Exception as e:
+                _logger.warning("Effect component %s failed: %s", file_rel, e)
+                continue
+            import_line = "import %s from '../components/external/%s.%s'" % (
+                main, name, ext)
+            known_imports[main] = import_line
+            evidence.append({
+                'component_id': 'react_bits/%s' % effect,
+                'path': file_rel,
+                'exports': [main],
+                'provider': 'react_bits',
+                'kind': 'visual_effect',
+            })
         return known_imports, evidence
+
+    @staticmethod
+    def _find_candidate_package(artifact: WebsiteGenerationArtifact,
+                                component_name: str):
+        """The already-discovered ComponentPackage for a curated component
+        (by source identifier), from the candidate_components the
+        ComponentDiscoveryEngine published on the artifact. Returns None
+        when the component was not discovered — never fetches."""
+        metadata = getattr(artifact, 'generation_metadata', None) or {}
+        candidates = metadata.get('candidate_components') or []
+        for candidate in candidates:
+            pkg = (candidate.get('package')
+                   if isinstance(candidate, dict) else candidate)
+            if pkg is None:
+                continue
+            metadata = getattr(pkg, 'metadata', None) or {}
+            if (str(metadata.get('source_identifier') or '') == component_name
+                    or str(getattr(pkg, 'component_id', '')
+                           ).rsplit('/', 1)[-1] == component_name):
+                return pkg
+        return None
 
     @staticmethod
     def _section_copy(page_sections: Optional[List[Dict[str, Any]]],
@@ -1359,6 +1500,85 @@ class CodeGenerationEngine(BaseGenerationEngine):
             getattr(getattr(artifact, 'requirements', None),
                     'capabilities', None) or [])
         return capabilities & {'products', 'leads'}
+
+    @staticmethod
+    def _hero_subtitle(text: str, budget: int = 200) -> str:
+        """Phase 47.39A: bounded subtitle preserving word/sentence boundary.
+
+        The previous ``[:200]`` slice cut mid-word (5/5 proven — ``retent``
+        etc.). This trims at the last sentence- or word-boundary within the
+        budget; a single over-long word is hard-cut. Bounded, no new
+        architecture.
+        """
+        if not text:
+            return ''
+        paragraph = str(text).split('\n\n')[0].strip()
+        if len(paragraph) <= budget:
+            return paragraph
+        cut = paragraph[:budget].rstrip()
+        # Prefer a sentence boundary (``. ``) nearest the end.
+        last_sentence = cut.rfind('. ')
+        if last_sentence >= max(40, budget - 90):
+            return cut[:last_sentence + 1].rstrip()
+        last_space = cut.rfind(' ')
+        if last_space >= max(20, budget - 60):
+            return cut[:last_space].rstrip()
+        return cut
+
+    @staticmethod
+    def _hero_cta_label(artifact) -> str:
+        """Phase 47.39A: CTA label is the brief's CTA when available.
+
+        Previous ``services[0]`` heuristic produced a generic ``Get started``
+        on all 5 sites, ignoring the briefs' real CTAs (``Reserve a table``,
+        ``Shop collection`` …). The brief CTA is carried in branding. Bounded.
+        """
+        branding = getattr(getattr(artifact, 'requirements', None), 'branding', None) or {}
+        brief_cta = str(branding.get('cta') or '').strip()
+        if brief_cta:
+            return brief_cta[:40]
+        services = branding.get('services') or []
+        if services:
+            first_service = str(services[0]).lower()
+            if 'design' in first_service or 'creative' in first_service:
+                return 'View work'
+            if 'consult' in first_service or 'advisor' in first_service:
+                return 'Book a call'
+            if 'develop' in first_service or 'build' in first_service:
+                return 'Start project'
+        return 'Get started'
+
+    @staticmethod
+    def _hero_cta_route(valid_routes, artifact=None) -> str:
+        """Phase 47.39A: CTA destination prefers ``/contact``; without it,
+        picks the most CTA-relevant non-home route (word overlap between CTA
+        label and route name) so ``Reserve a table`` -> ``/reservations``
+        and ``Shop collection`` -> ``/products`` instead of looping home.
+
+        Deterministic, no second routing system.
+        """
+        routes = list(valid_routes or ['/'])
+        if '/contact' in routes:
+            return '/contact'
+        branding = getattr(getattr(artifact, 'requirements', None), 'branding', None) or {} if artifact else {}
+        cta_words = set(str(branding.get('cta') or '').lower().split())
+        cta_route = None
+        best_overlap = 0
+        for route in routes:
+            if route == '/':
+                continue
+            token = route.strip('/').lower()
+            # token substring overlap (``reserve`` ~ ``reservations``)
+            overlap = sum(1 for w in cta_words if w and (w in token or token in w))
+            if overlap > best_overlap:
+                best_overlap = overlap
+                cta_route = route
+        if cta_route:
+            return cta_route
+        for route in routes:
+            if route != '/':
+                return route
+        return routes[0] if routes else '/'
 
     @staticmethod
     def _hero_badge(artifact) -> str:
@@ -1395,6 +1615,79 @@ class CodeGenerationEngine(BaseGenerationEngine):
         per_section = stock_images.get('stock_section_%s'
                                         % str(section or '').lower())
         return per_section or stock_images.get('stock_section')
+
+    # ------------------------------------------------------------------
+    # Phase 47.40: visual-direction consumption. ThemeEngine owns the
+    # decision (generation_metadata['visual_direction']); these builders
+    # apply it through bounded design-token variants. Every helper is a
+    # pure function with a backward-compatible default, so artifacts
+    # predating the contract keep the exact previous behavior.
+    # ------------------------------------------------------------------
+
+    _VD_AXIS_VALUES = {
+        'density': ('compact', 'standard', 'airy'),
+        'corner_style': ('sharp', 'soft', 'rounded'),
+        'depth_level': ('flat', 'subtle', 'elevated'),
+        'motion_level': ('none', 'subtle', 'standard', 'expressive'),
+        'composition_style': ('editorial', 'centered', 'grid', 'immersive'),
+        'hero_variant': ('split', 'centered', 'fullscreen'),
+        'secondary_hero_variant': ('split', 'centered'),
+    }
+
+    @classmethod
+    def _visual_direction(cls, artifact: WebsiteGenerationArtifact) -> Dict[str, Any]:
+        """Validated visual direction from the artifact (ThemeEngine
+        contract). Unknown/absent fields fall back to the previous
+        universal behavior."""
+        metadata = getattr(artifact, 'generation_metadata', None) or {}
+        raw = dict(metadata.get('visual_direction') or {})
+        vd = {'present': bool(raw)}
+        for axis, allowed in cls._VD_AXIS_VALUES.items():
+            value = str(raw.get(axis) or '').strip()
+            vd[axis] = value if value in allowed else ''
+        vd['effects'] = [str(e) for e in (raw.get('effects') or [])
+                         if str(e) in ('SpotlightCard', 'StarBorder')][:2]
+        return vd
+
+    @classmethod
+    def _hero_variant(cls, vd: Dict[str, Any], is_home: bool,
+                      hero_path: Optional[str]) -> str:
+        """Phase 47.40: deterministic hero-variant selection from the
+        visual direction and page purpose — replacing the universal
+        ``split iff image exists`` rule. Falls back to the legacy rule
+        when no visual direction exists (backward compatibility)."""
+        variant = vd.get('hero_variant' if is_home else 'secondary_hero_variant', '')
+        if not variant:
+            # Legacy behavior (no visual direction on the artifact).
+            return 'split' if hero_path else 'centered'
+        if not hero_path and variant in ('split', 'fullscreen'):
+            # The split/fullscreen compositions are image-led; without
+            # imagery the centered variant is the honest composition.
+            return 'centered'
+        return variant
+
+    @staticmethod
+    def _section_max_width(vd: Dict[str, Any], default: int) -> int:
+        """Bounded section measure per composition style."""
+        return {
+            'editorial': 880, 'centered': 720, 'grid': 1080,
+            'immersive': 1140,
+        }.get(vd.get('composition_style', ''), default)
+
+    @staticmethod
+    def _card_min_width(vd: Dict[str, Any]) -> int:
+        """Card-grid density: the auto-fit minmax floor."""
+        return {'compact': 200, 'standard': 240, 'airy': 280}.get(
+            vd.get('density', ''), 240)
+
+    @staticmethod
+    def _gallery_geometry(vd: Dict[str, Any]) -> str:
+        """Gallery geometry family per composition style — bounded to the
+        three implemented variants."""
+        return {
+            'immersive': 'masonry', 'editorial': 'feature',
+            'grid': 'uniform', 'centered': 'uniform',
+        }.get(vd.get('composition_style', ''), 'uniform')
 
     @staticmethod
     def _section_items(page_sections: Optional[List[Dict[str, Any]]],
@@ -1457,7 +1750,9 @@ class CodeGenerationEngine(BaseGenerationEngine):
                                selected_component: Optional[dict],
                                external_imports: Dict[str, str],
                                stock_images: Dict[str, Dict[str, str]],
-                               valid_routes: List[str]):
+                               valid_routes: List[str],
+                               available_effects=None,
+                               page_path: str = ''):
         """Deterministic pattern-section builder (no LLM call). Returns
         (code, import lines) or None when the section has nothing
         materializable to render (e.g. Gallery without images)."""
@@ -1496,8 +1791,23 @@ class CodeGenerationEngine(BaseGenerationEngine):
         builder = getattr(self, '_pattern_%s' % section.lower(), None)
         if builder is None:
             return None
+        # Phase 47.40: effects apply ONLY when the curated component
+        # actually materialized (the plain composition is the
+        # deterministic fallback — a missing candidate never breaks
+        # generation). The mapping is {effect_name: import_line} using the
+        # assembler's OWN registered lines — builders never fabricate
+        # import paths. Callers may pass the resolved mapping explicitly
+        # (testing/evidence); by default it derives from the materialized
+        # external imports.
+        if available_effects is None:
+            available_effects = {
+                e: external_imports[e]
+                for e in self._visual_direction(artifact)['effects']
+                if e in external_imports}
         result = builder(component_name, artifact, heading, body, wrapper,
-                         stock_images, valid_routes, section_index, page_sections)
+                         stock_images, valid_routes, section_index,
+                         page_sections, available_effects=available_effects,
+                         page_path=page_path)
         if result is None:
             return None
         code, extra_imports = result
@@ -1507,9 +1817,16 @@ class CodeGenerationEngine(BaseGenerationEngine):
     # -- individual pattern section builders (deterministic) ------------
 
     def _featuregrid_organism(self, component_name, heading, subtitle,
-                              items, paragraphs, aria_label):
-        """Phase 47.25 (ADR-0077): native FeatureGrid organism composition â€”
-        declared data array + prop-driven render of the REAL component."""
+                              items, paragraphs, aria_label,
+                              effect='', effect_import=''):
+        """Phase 47.25 (ADR-0077): native FeatureGrid organism composition —
+        declared data array + prop-driven render of the REAL component.
+
+        Phase 47.40A: when a compatible allowlisted effect is selected AND
+        materialized, the organism passes it as ``ItemWrapper`` to the
+        native FeatureGrid so each Card renders inside the effect component.
+        When no effect is selected the output is identical to the previous
+        behavior (no ItemWrapper prop)."""
         lines = []
         lines.append('function %s() {' % component_name)
         lines.append('  const features = [')
@@ -1527,41 +1844,88 @@ class CodeGenerationEngine(BaseGenerationEngine):
         lines.append('      title=%s' % self._jsx_text_literal(heading or 'Our Work'))
         if subtitle:
             lines.append('      subtitle=%s' % self._jsx_text_literal(subtitle))
+        if effect:
+            lines.append('      ItemWrapper={%s}' % effect)
         lines.append('      features={features} />')
         lines.append('  )')
         lines.append('}')
-        return '\n'.join(lines) + '\n', []
+        extra_imports = [effect_import] if effect and effect_import else []
+        return '\n'.join(lines) + '\n', extra_imports
 
     def _pattern_servicesgrid(self, component_name, artifact, heading, body,
                               wrapper, stock_images, valid_routes, section_index,
-                              page_sections):
-        req = artifact.requirements
-        branding = req.branding or {}
-        services = [str(s) for s in (branding.get('services') or
-                                     (req.goals or []))[:6] if str(s).strip()]
-        if not services:
-            services = ['Services', 'Approach', 'Process'][:3]
-        paragraphs = [p.strip() for p in (body or '').split('\n\n') if p.strip()]
-        if not paragraphs:
-            paragraphs = ['']
+                              page_sections, available_effects=None, page_path=''):
+        """available_effects (Phase 47.40): {effect_name: import_line} for
+        the curated effects that actually materialized — the import lines
+        are the assembler's own registrations, never builder-fabricated."""
+        # Phase 47.39A (verified defect #4): prefer canonical ContentEngine
+        # structured items — the LLM's real service descriptions — over the
+        # static brief service names; only fall back to branding when no
+        # items exist (the pre-existing binding discarded generated copy).
+        structured_items = self._section_items(page_sections, section_index, 'ServicesGrid')
+        if structured_items:
+            services = [str(i.get('title') or i.get('name') or '').strip()
+                        for i in structured_items[:6]]
+            services = [s for s in services if s]
+            paragraphs = [str(i.get('body') or i.get('description') or '').strip()
+                          for i in structured_items[:6]]
+        else:
+            req = artifact.requirements
+            branding = req.branding or {}
+            services = [str(s) for s in (branding.get('services') or
+                                         (req.goals or []))[:6] if str(s).strip()]
+            if not services:
+                services = ['Services', 'Approach', 'Process'][:3]
+            paragraphs = [p.strip() for p in (body or '').split('\n\n') if p.strip()]
+            if not paragraphs:
+                paragraphs = ['']
+            # For FeaturesGrid vs ServicesGrid offset: the heading sentence
+            # lives in paragraphs[0]; item descriptions are paragraphs[1+].
+            if len(paragraphs) == 1 and not paragraphs[0]:
+                paragraphs = [''] + paragraphs
 
         # Phase 47.25 (ADR-0077): the native FeatureGrid organism composes
         # the whole section when it matched (it renders items as cards).
         if (wrapper and wrapper.get('is_native')
                 and wrapper.get('main') == 'FeatureGrid'):
+            # FeatureGrid organism's ``subtitle`` is the first body paragraph
+            # (the section intro); descriptions are carried per item. When
+            # items carry their own bodies, use the first body as subtitle
+            # and remaining bodies as per-item descriptions.
+            subtitle = paragraphs[0] if paragraphs else ''
+            # If we came from structured items, paragraphs are exactly the
+            # per-item bodies (no intro paragraph); use body as intro when
+            # the section body has content and items lack bodies.
+            if structured_items and not any(paragraphs):
+                alt_paragraphs = [p.strip() for p in (body or '').split('\n\n') if p.strip()]
+                if alt_paragraphs:
+                    subtitle = alt_paragraphs[0]
+                    # Keep one-paragraph intro style; per-item descriptions
+                    # fall back to empty (rare degenerate artifact).
+            # Phase 47.40A: resolve the canonical selected effect before
+            # delegating to the native organism.
+            effects = dict(available_effects or {})
+            effect_import = effects.get('SpotlightCard', '')
+            effect = 'SpotlightCard' if effect_import else ''
             return self._featuregrid_organism(
-                component_name, heading, paragraphs[0], services, paragraphs,
-                'services grid')
+                component_name, heading, subtitle, services, paragraphs,
+                'services grid', effect=effect, effect_import=effect_import)
 
         section_entry = self._section_image(stock_images, 'ServicesGrid')
         section_img = (section_entry or {}).get('path')
+        vd = self._visual_direction(artifact)
+        max_width = self._section_max_width(vd, 1080)
+        card_min = self._card_min_width(vd)
+        effects = dict(available_effects or {})
+        effect_line = effects.get('SpotlightCard', '')
+        effect = 'SpotlightCard' if effect_line else ''
         lines = []
         lines.append('function %s() {' % component_name)
         lines.append('  return (')
         lines.append('    <section aria-label="services section" style={{ '
                       "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)', "
                       "background: 'var(--color-card, #ffffff)' }}>")
-        lines.append("      <div style={{ maxWidth: 1080, margin: '0 auto' }}>")
+        lines.append("      <div style={{ maxWidth: %d, margin: '0 auto' }}>" % max_width)
         if heading:
             lines.append("        <h2 style={{ fontFamily: "
                          "'var(--font-heading, Inter, sans-serif)', fontSize: "
@@ -1584,15 +1948,15 @@ class CodeGenerationEngine(BaseGenerationEngine):
             lines.append('          ' + self._jsx_text_literal(paragraphs[0]))
             lines.append('        </p>')
         lines.append("        <div style={{ display: 'grid', "
-                     "gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', "
-                     "gap: 'var(--spacing-lg, 2rem)' }}>")
+                     "gridTemplateColumns: 'repeat(auto-fit, minmax(%dpx, 1fr))', "
+                     "gap: 'var(--spacing-lg, 2rem)' }}>" % card_min)
         icons = ['Briefcase', 'Layers', 'Target', 'Compass', 'Lightbulb', 'Box']
         for idx, service in enumerate(services):
             desc = paragraphs[idx + 1] if idx + 1 < len(paragraphs) else ''
             icon = icons[idx % len(icons)]
             source_attr = str(wrapper['source']).replace('"', '') if wrapper else ''
             lines.extend(self._service_item_lines(wrapper, icon, service, desc,
-                                                  source_attr))
+                                                  source_attr, effect=effect))
         lines.append('        </div>')
         lines.append('      </div>')
         lines.append('    </section>')
@@ -1601,9 +1965,13 @@ class CodeGenerationEngine(BaseGenerationEngine):
         code = '\n'.join(lines) + '\n'
         icons_used = sorted({icons[i % len(icons)] for i in range(len(services))})
         lucide_import = "import { %s } from 'lucide-react'" % ', '.join(icons_used)
-        return code, [lucide_import]
+        imports = [lucide_import]
+        if effect:
+            imports.append(effect_line)
+        return code, imports
 
-    def _service_item_lines(self, wrapper, icon, service, desc, source_attr):
+    def _service_item_lines(self, wrapper, icon, service, desc, source_attr,
+                            effect=''):
         """One service entry â€” composed inside the REAL external component
         when one matched (card family or single-component wrapper)."""
         item_style = ("border: '1px solid var(--color-border, #e2e8f0)', "
@@ -1660,8 +2028,16 @@ class CodeGenerationEngine(BaseGenerationEngine):
             return lines
 
         data_attr = ' data-nexora-source="determinant:servicesgrid"'
+        # Phase 47.40: when the visual direction's effects budget selected
+        # the curated zero-dependency SpotlightCard (and it materialized),
+        # the plain fallback item composes inside it (children composition;
+        # the assembler injects the fixed external import line).
+        open_tag = ('          <%s style={{ %s }}>' % (effect, item_style)
+                    if effect
+                    else '          <div%s style={{ %s }}>' % (data_attr, item_style))
+        close_tag = ('          </%s>' % effect if effect else '          </div>')
         lines = [
-            '          <div%s style={{ %s }}>' % (data_attr, item_style),
+            open_tag,
             icon_line,
             title_line,
             '              ' + self._jsx_text_literal(service),
@@ -1671,12 +2047,12 @@ class CodeGenerationEngine(BaseGenerationEngine):
             lines.append('            <p style={{ %s }}>' % desc_style)
             lines.append('              ' + self._jsx_text_literal(desc))
             lines.append('            </p>')
-        lines.append('          </div>')
+        lines.append(close_tag)
         return lines
 
     def _pattern_testimonial(self, component_name, artifact, heading, body,
                              wrapper, stock_images, valid_routes, section_index,
-                             page_sections):
+                             page_sections, available_effects=(), page_path=''):
         if not body:
             body = 'Trusted by clients who value considered work.'
         req = artifact.requirements
@@ -1709,13 +2085,15 @@ class CodeGenerationEngine(BaseGenerationEngine):
             return code, []
 
         lines = []
+        vd = self._visual_direction(artifact)
         lines.append('function %s() {' % component_name)
         lines.append('  return (')
         lines.append('    <section aria-label="testimonial section" style={{ '
                      "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)', "
                      "background: 'var(--color-background, #f8fafc)' }}>")
-        lines.append('      <div style={{ maxWidth: 820, margin: \'0 auto\', '
-                     'textAlign: \'center\' }}>')
+        lines.append("      <div style={{ maxWidth: %d, margin: '0 auto', "
+                     "textAlign: 'center' }}>"
+                     % self._section_max_width(vd, 820))
         lines.append('        <Quote size={28} aria-hidden="true" style={{ color: '
                      "'var(--color-primary, #3f5c76)', margin: "
                      "'0 auto var(--spacing-md, 1rem)' }} />")
@@ -1756,22 +2134,31 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
     def _pattern_contactcta(self, component_name, artifact, heading, body,
                             wrapper, stock_images, valid_routes, section_index,
-                            page_sections):
+                            page_sections, available_effects=None, page_path=''):
         req = artifact.requirements
         branding = req.branding or {}
         business = (req.business_name or branding.get('business_name') or '')
         location = req.location or branding.get('location', '')
-        contact_route = '/contact' if '/contact' in (valid_routes or []) else \
-            ((valid_routes or ['/'])[0])
+        contact_route = self._hero_cta_route(valid_routes, artifact)
+        label = self._hero_cta_label(artifact)
+        # Phase 47.40: section measure from the visual direction; the
+        # curated StarBorder effect (zero dependencies) may wrap the
+        # fallback CTA anchor for expressive directions — only when it
+        # actually materialized (the import line is the assembler's own
+        # registration).
+        vd = self._visual_direction(artifact)
+        star_line = dict(available_effects or {}).get('StarBorder', '')
+        star_border = bool(star_line)
         lines = []
         lines.append('function %s() {' % component_name)
         lines.append('  return (')
         lines.append('    <section aria-label="contact section" style={{ '
-                     "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)', "
-                     "background: 'var(--color-primary, #3f5c76)' }}>")
-        lines.append('      <div style={{ maxWidth: 820, margin: \'0 auto\', '
-                     'textAlign: \'center\', color: '
-                     '\'var(--color-primary-foreground, #ffffff)\' }}>')
+                      "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)', "
+                      "background: 'var(--color-primary, #3f5c76)' }}>")
+        lines.append("      <div style={{ maxWidth: %d, margin: '0 auto', "
+                     "textAlign: 'center', color: "
+                     "'var(--color-primary-foreground, #ffffff)' }}>"
+                     % self._section_max_width(vd, 820))
         if heading:
             lines.append('        <h2 style={{ fontFamily: '
                          "'var(--font-heading, Inter, sans-serif)', fontSize: "
@@ -1814,31 +2201,52 @@ class CodeGenerationEngine(BaseGenerationEngine):
                          'style={{ display: \'inline-flex\', alignItems: '
                          '\'center\', gap: \'var(--spacing-xs, 0.25rem)\' }}>'
                          % contact_route)
-            lines.append('          ' + self._jsx_text_literal('Get in touch'))
+            lines.append('          ' + self._jsx_text_literal(label))
             lines.append('          <ArrowRight size={18} aria-hidden="true" />')
             lines.append('        </Button>')
         else:
-            lines.append('        <a href="%s" style={{ display: ' % contact_route
-                         + "'inline-flex', alignItems: 'center', gap: "
-                         "'var(--spacing-xs, 0.25rem)', padding: "
-                         "'0.75rem 1.5rem', borderRadius: "
-                         "'var(--radius-md, 8px)', background: "
-                         "'var(--color-primary-foreground, #ffffff)', color: "
-                         "'var(--color-primary, #3f5c76)', fontWeight: 600, "
-                         "textDecoration: 'none' }}>")
-            lines.append('          ' + self._jsx_text_literal('Get in touch'))
-            lines.append('          <ArrowRight size={18} aria-hidden="true" />')
-            lines.append('        </a>')
+            if star_border:
+                # Phase 47.40: expressive directions wrap the fallback CTA
+                # in the curated zero-dependency StarBorder (children
+                # composition; assembler-owned fixed import).
+                lines.append('        <StarBorder as="a" href="%s" '
+                             'data-nexora-source="react_bits/StarBorder" '
+                             'color="var(--color-accent, #b45309)" '
+                             'speed="8s" '
+                             'backgroundColor='
+                             '"var(--color-primary-foreground, #ffffff)" '
+                             'textColor="var(--color-primary, #3f5c76)" '
+                             'borderColor="transparent" '
+                             'style={{ display: \'inline-flex\' }}>'
+                             % contact_route)
+                lines.append('          ' + self._jsx_text_literal(label))
+                lines.append('          <ArrowRight size={18} aria-hidden="true" />')
+                lines.append('        </StarBorder>')
+            else:
+                lines.append('        <a href="%s" style={{ display: ' % contact_route
+                             + "'inline-flex', alignItems: 'center', gap: "
+                             "'var(--spacing-xs, 0.25rem)', padding: "
+                             "'0.75rem 1.5rem', borderRadius: "
+                             "'var(--radius-md, 8px)', background: "
+                             "'var(--color-primary-foreground, #ffffff)', color: "
+                             "'var(--color-primary, #3f5c76)', fontWeight: 600, "
+                             "textDecoration: 'none' }}>")
+                lines.append('          ' + self._jsx_text_literal(label))
+                lines.append('          <ArrowRight size={18} aria-hidden="true" />')
+                lines.append('        </a>')
         lines.append('      </div>')
         lines.append('    </section>')
         lines.append('  )')
         lines.append('}')
         code = '\n'.join(lines) + '\n'
-        return code, ["import { MapPin, Building2, ArrowRight } from 'lucide-react'"]
+        imports = ["import { MapPin, Building2, ArrowRight } from 'lucide-react'"]
+        if star_border:
+            imports.append(star_line)
+        return code, imports
 
     def _pattern_contactform(self, component_name, artifact, heading, body,
                              wrapper, stock_images, valid_routes, section_index,
-                             page_sections):
+                             page_sections, available_effects=(), page_path=''):
         """Phase 47.36 (leads capability): lead capture bound to the Client
         API — composes the native ContactForm organism with the real
         submit mode (onSubmitLead) wired to the ONE canonical clientApi
@@ -1902,14 +2310,17 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
         hero_path = (hero_display or {}).get('path')
         hero_alt = (hero_display or {}).get('alt', 'hero visual')
-        cta_route = '/contact' if '/contact' in (valid_routes or []) else \
-            ((valid_routes or ['/'])[0])
+        cta_route = self._hero_cta_route(valid_routes, artifact)
+        cta_label = self._hero_cta_label(artifact)
 
-        # Phase 47.29: the same deterministic badge/variant selection as
-        # the home hero (brief-derived eyebrow, split with imagery /
-        # centered without).
+        # Phase 47.29: deterministic badge/eyebrow from brief data (the
+        # business category or domain — real client signals, never
+        # invented). Phase 47.40: the layout variant comes from the
+        # ThemeEngine visual direction (composition style + page
+        # purpose) — no longer the universal split-iff-image rule.
         hero_badge = self._hero_badge(artifact)
-        hero_variant = 'split' if hero_path else 'centered'
+        hero_variant = self._hero_variant(
+            self._visual_direction(artifact), is_home=False, hero_path=hero_path)
 
         if native_hero_available:
             lines = []
@@ -1923,14 +2334,13 @@ class CodeGenerationEngine(BaseGenerationEngine):
             if hero_badge:
                 props.append('badge=%s' % self._jsx_text_literal(hero_badge))
             if body:
-                # Bounded subtitle: first paragraph, 200 chars.
-                subtitle = body.split('\n\n')[0].strip()[:200]
+                subtitle = self._hero_subtitle(body, 200)
                 props.append('subtitle=%s' % self._jsx_text_literal(subtitle))
             if hero_path:
                 props.append('image={{ src: "%s", alt: "%s" }}'
                              % (hero_path, str(hero_alt).replace('"', '')))
             props.append('cta={{ label: %s, href: "%s" }}'
-                         % (self._js_string_literal('Learn more'), cta_route))
+                         % (self._js_string_literal(cta_label), cta_route))
             lines.append('    <Hero')
             for prop in props:
                 lines.append('      %s' % prop)
@@ -2010,30 +2420,17 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
         hero_path = (hero_display or {}).get('path')
         hero_alt = (hero_display or {}).get('alt', 'hero visual')
-        cta_route = '/contact' if '/contact' in (valid_routes or []) else \
-            ((valid_routes or ['/'])[0])
-
-        # Extract a compelling CTA label from business context
-        req = artifact.requirements
-        branding = req.branding or {}
-        services = branding.get('services') or []
-        cta_label = 'Get started'
-        if services:
-            first_service = str(services[0]).lower()
-            if 'design' in first_service or 'creative' in first_service:
-                cta_label = 'View work'
-            elif 'consult' in first_service or 'advisor' in first_service:
-                cta_label = 'Book a call'
-            elif 'develop' in first_service or 'build' in first_service:
-                cta_label = 'Start project'
+        cta_route = self._hero_cta_route(valid_routes, artifact)
+        cta_label = self._hero_cta_label(artifact)
 
         # Phase 47.29: deterministic badge/eyebrow from brief data (the
         # business category or domain — real client signals, never
-        # invented), and a layout variant driven by existing content
-        # signals: split when imagery exists, centered otherwise. No
-        # single business type is hardcoded.
+        # invented), and Phase 47.40: a layout variant driven by the
+        # ThemeEngine visual direction (composition style) and the home
+        # page purpose — no longer merely whether an image exists.
         hero_badge = self._hero_badge(artifact)
-        hero_variant = 'split' if hero_path else 'centered'
+        hero_variant = self._hero_variant(
+            self._visual_direction(artifact), is_home=True, hero_path=hero_path)
 
         if native_hero_available:
             lines = []
@@ -2047,7 +2444,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
             if hero_badge:
                 props.append('badge=%s' % self._jsx_text_literal(hero_badge))
             if body:
-                subtitle = body.split('\n\n')[0].strip()[:200]
+                subtitle = self._hero_subtitle(body, 200)
                 props.append('subtitle=%s' % self._jsx_text_literal(subtitle))
             if hero_path:
                 props.append('image={{ src: "%s", alt: "%s" }}'
@@ -2212,7 +2609,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
     def _pattern_pricing(self, component_name, artifact, heading, body,
                          wrapper, stock_images, valid_routes, section_index,
-                         page_sections):
+                         page_sections, available_effects=(), page_path=''):
         """SaaS pricing section — composes the native PricingCard organisms
         from the ContentArtifact's STRUCTURED items (canonical — ADR-0079)
         with the prose plan-block parsing as the bounded fallback."""
@@ -2239,6 +2636,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
         # The native PricingCard is a scaffold file (guaranteed by the
         # provider scaffold); compose the organisms when plans parsed.
         if plans:
+            vd = self._visual_direction(artifact)
             lines = []
             lines.append('function %s() {' % component_name)
             lines.append('  const plans = [')
@@ -2255,10 +2653,11 @@ class CodeGenerationEngine(BaseGenerationEngine):
             lines.append('  ]')
             lines.append('  return (')
             lines.append('    <section aria-label="pricing section" style={{ '
-                         "padding: 'var(--spacing-xl, 4rem) "
-                         "var(--spacing-md, 1rem)', "
-                         "background: 'var(--color-card, #ffffff)' }}>")
-            lines.append("      <div style={{ maxWidth: 1080, margin: '0 auto' }}>")
+                          "padding: 'var(--spacing-xl, 4rem) "
+                          "var(--spacing-md, 1rem)', "
+                          "background: 'var(--color-card, #ffffff)' }}>")
+            lines.append("      <div style={{ maxWidth: %d, margin: '0 auto' }}>"
+                         % self._section_max_width(vd, 1080))
             if heading:
                 lines.append("        <h2 style={{ fontFamily: "
                              "'var(--font-heading, Inter, sans-serif)', "
@@ -2321,7 +2720,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
     def _pattern_faq(self, component_name, artifact, heading, body,
                      wrapper, stock_images, valid_routes, section_index,
-                     page_sections):
+                     page_sections, available_effects=(), page_path=''):
         """FAQ section — composes the native FAQ organism from the
         ContentArtifact's STRUCTURED items (canonical — ADR-0079) with the
         prose Q&A-block parsing as the bounded fallback."""
@@ -2366,7 +2765,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
     def _pattern_content(self, component_name, artifact, heading, body,
                          wrapper, stock_images, valid_routes, section_index,
-                         page_sections):
+                         page_sections, available_effects=(), page_path=''):
         """Phase 47.27 (ADR-0079): deterministic Content section — the
         ContentArtifact already carries the full copy (verified by the
         runtime probe: the LLM call was only converting known copy into
@@ -2409,12 +2808,14 @@ class CodeGenerationEngine(BaseGenerationEngine):
             ((valid_routes or ['/'])[0])
 
         lines = []
+        vd = self._visual_direction(artifact)
         lines.append('function %s() {' % component_name)
         lines.append('  return (')
         lines.append('    <section aria-label="content section" style={{ '
-                     "padding: 'var(--spacing-xl, 4rem) "
-                     "var(--spacing-md, 1rem)' }}>")
-        lines.append("      <div style={{ maxWidth: 880, margin: '0 auto' }}>")
+                      "padding: 'var(--spacing-xl, 4rem) "
+                      "var(--spacing-md, 1rem)' }}>")
+        lines.append("      <div style={{ maxWidth: %d, margin: '0 auto' }}>"
+                     % self._section_max_width(vd, 880))
         if heading:
             lines.append("        <h2 style={{ fontFamily: "
                          "'var(--font-heading, Inter, sans-serif)', fontSize: "
@@ -2480,7 +2881,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
     def _pattern_about(self, component_name, artifact, heading, body,
                        wrapper, stock_images, valid_routes, section_index,
-                       page_sections):
+                       page_sections, available_effects=(), page_path=''):
         if not heading and not body:
             return None
         req = artifact.requirements
@@ -2488,14 +2889,30 @@ class CodeGenerationEngine(BaseGenerationEngine):
                     or req.domain or 'Our story')
         section_entry = self._section_image(stock_images, 'About')
         section_img = (section_entry or {}).get('path')
+        # Phase 47.40: composition variant from the visual direction —
+        # editorial/immersive directions get the asymmetric offset
+        # composition (text column + offset image), everything else keeps
+        # the stacked composition. Bounded to the two implemented forms.
+        vd = self._visual_direction(artifact)
+        offset = (vd.get('composition_style') in ('editorial', 'immersive')
+                  and bool(section_img) and bool(heading))
         lines = []
         lines.append('function %s() {' % component_name)
         lines.append('  return (')
         lines.append('    <section aria-label="about section" style={{ '
                       "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)' }}>")
-        lines.append("      <div style={{ maxWidth: 880, margin: '0 auto', "
-                      "display: 'flex', flexDirection: 'column', gap: "
-                      "'var(--spacing-lg, 2rem)', alignItems: 'flex-start' }}>")
+        if offset:
+            lines.append("      <div style={{ maxWidth: %d, margin: '0 auto', "
+                         "display: 'flex', flexWrap: 'wrap', alignItems: "
+                         "'center', gap: 'var(--spacing-xl, 4rem)' }}>"
+                         % self._section_max_width(vd, 880))
+            lines.append("        <div style={{ flex: '1 1 320px', "
+                         "minWidth: 280 }}>")
+        else:
+            lines.append("      <div style={{ maxWidth: %d, margin: '0 auto', "
+                         "display: 'flex', flexDirection: 'column', gap: "
+                         "'var(--spacing-lg, 2rem)', alignItems: 'flex-start' }}>"
+                         % self._section_max_width(vd, 880))
         if heading:
             lines.append("        <h2 style={{ fontFamily: "
                          "'var(--font-heading, Inter, sans-serif)', fontSize: "
@@ -2503,21 +2920,42 @@ class CodeGenerationEngine(BaseGenerationEngine):
                          "'var(--color-text, #0f172a)' }}>")
             lines.append('          ' + self._jsx_text_literal(heading))
             lines.append('        </h2>')
+        if offset:
+            # The text column closes before the image column opens.
+            lines.append("        </div>")
         if section_img:
             alt = (section_entry or {}).get('alt', 'about')
-            lines.append('        <img src="%s" alt="%s" style={{ width: '
-                         % (section_img, str(alt).replace('"', ''))
-                         + "'100%', maxWidth: 480, height: 'auto', borderRadius: "
-                         "'var(--radius-md, 8px)' }} />")
+            if offset:
+                lines.append('        <div style={{ flex: \'1 1 300px\', '
+                             'minWidth: 260, marginLeft: \'auto\' }}>')
+                lines.append('          <img src="%s" alt="%s" style={{ width: '
+                             % (section_img, str(alt).replace('"', ''))
+                             + "'100%', height: 'auto', borderRadius: "
+                             "'var(--radius-lg, 12px)', boxShadow: "
+                             "'var(--shadow-md, none)' }} />")
+                lines.append('        </div>')
+            else:
+                lines.append('        <img src="%s" alt="%s" style={{ width: '
+                             % (section_img, str(alt).replace('"', ''))
+                             + "'100%', maxWidth: 480, height: 'auto', borderRadius: "
+                             "'var(--radius-md, 8px)' }} />")
+        if offset and body:
+            # Body paragraphs flow under the two columns in the offset
+            # composition (magazine-style pull text).
+            lines.append("        <div style={{ flexBasis: '100%', "
+                         "maxWidth: 720, marginTop: "
+                         "'var(--spacing-lg, 2rem)' }}>")
         if body:
             lines.append("        <p style={{ fontSize: 'var(--body, 1rem)', "
                          "lineHeight: 1.7, color: "
                          "'var(--color-secondary, #475569)' }}>")
             lines.append('          ' + self._jsx_text_literal(body))
             lines.append('        </p>')
+        if offset and body:
+            lines.append('        </div>')
         lines.append("        <p style={{ fontSize: '0.875rem', letterSpacing: "
                      "'0.04em', color: 'var(--color-primary, #3f5c76)', "
-                     "fontWeight: 600 }}>")
+                     "fontWeight: 600, flexBasis: '100%' }}>")
         lines.append('          ' + self._jsx_text_literal(business))
         lines.append('        </p>')
         lines.append('      </div>')
@@ -2528,33 +2966,73 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
     def _pattern_featuregrid(self, component_name, artifact, heading, body,
                              wrapper, stock_images, valid_routes, section_index,
-                             page_sections):
-        """SaaS feature grid â€” composes the native FeatureGrid organism with
+                             page_sections, available_effects=None, page_path=''):
+        """SaaS feature grid — composes the native FeatureGrid organism with
         props when it matched; falls back to the themed item grid."""
-        req = artifact.requirements
-        branding = req.branding or {}
-        features_src = [str(s) for s in (branding.get('services') or
-                                         (req.goals or []))[:6]
-                        if str(s).strip()]
-        if not features_src:
-            features_src = ['Feature', 'Platform', 'Workflow'][:3]
-        paragraphs = [p.strip() for p in (body or '').split('\n\n') if p.strip()]
-        subtitle = paragraphs[0] if paragraphs else ''
+        # Phase 47.39A (verified defect #4): the LLM's generated FeatureGrid
+        # structured items carry full title + body; the previous binding used
+        # only brief service names and lost generated copy.
+        structured_items = self._section_items(page_sections, section_index, 'FeatureGrid')
+        if structured_items:
+            features_src = [str(i.get('title') or i.get('name') or '').strip()
+                            for i in structured_items[:6]]
+            features_src = [t for t in features_src if t]
+            # Structured item bodies ARE the per-feature descriptions; the
+            # section body's first paragraph is the intro/subtitle. Carry
+            # them separately so ``_featuregrid_organism`` can render
+            # descriptions alongside titles (preserving the LLM's creative
+            # copy without second generation).
+            item_descriptions = [str(i.get('body') or i.get('description') or '').strip()
+                                 for i in structured_items[:6]]
+            if not features_src:
+                # Degenerate item shape — fall back to the old source.
+                req = artifact.requirements
+                branding = req.branding or {}
+                features_src = [str(s) for s in (branding.get('services') or
+                                                 (req.goals or []))[:6]
+                                if str(s).strip()] or ['Feature', 'Platform', 'Workflow'][:3]
+                item_descriptions = []
+            # The intro/subtitle remains the section body (not an item body).
+            intro_paragraphs = [p.strip() for p in (body or '').split('\n\n') if p.strip()]
+            subtitle = intro_paragraphs[0] if intro_paragraphs else (structured_items[0].get('body', '')[:400] if structured_items else '')
+            # Feed item descriptions as the ``paragraphs`` tail so the
+            # organism renders per-feature text (``paragraphs[idx+1]``).
+            paragraphs = [subtitle] + item_descriptions
+        else:
+            req = artifact.requirements
+            branding = req.branding or {}
+            features_src = [str(s) for s in (branding.get('services') or
+                                             (req.goals or []))[:6]
+                            if str(s).strip()]
+            if not features_src:
+                features_src = ['Feature', 'Platform', 'Workflow'][:3]
+            paragraphs = [p.strip() for p in (body or '').split('\n\n') if p.strip()]
+            subtitle = paragraphs[0] if paragraphs else ''
 
         if wrapper and wrapper.get('is_native') and wrapper.get('main') == 'FeatureGrid':
             # Native organism composition: declared data + prop-driven render.
+            # Phase 47.40A: resolve the canonical selected effect before
+            # delegating to the native organism.
+            effects = dict(available_effects or {})
+            effect_import = effects.get('SpotlightCard', '')
+            effect = 'SpotlightCard' if effect_import else ''
             return self._featuregrid_organism(
                 component_name, heading, subtitle, features_src, paragraphs,
-                'features grid')
+                'features grid', effect=effect, effect_import=effect_import)
 
         # Themed fallback (same shape as the services grid, feature-typed).
+        vd = self._visual_direction(artifact)
+        effects = dict(available_effects or {})
+        effect_line = effects.get('SpotlightCard', '')
+        effect = 'SpotlightCard' if effect_line else ''
         lines = []
         lines.append('function %s() {' % component_name)
         lines.append('  return (')
         lines.append('    <section aria-label="features section" style={{ '
-                     "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)', "
-                     "background: 'var(--color-card, #ffffff)' }}>")
-        lines.append("      <div style={{ maxWidth: 1080, margin: '0 auto' }}>")
+                      "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)', "
+                      "background: 'var(--color-card, #ffffff)' }}>")
+        lines.append("      <div style={{ maxWidth: %d, margin: '0 auto' }}>"
+                     % self._section_max_width(vd, 1080))
         if heading:
             lines.append("        <h2 style={{ fontFamily: "
                          "'var(--font-heading, Inter, sans-serif)', fontSize: "
@@ -2571,18 +3049,27 @@ class CodeGenerationEngine(BaseGenerationEngine):
             lines.append('          ' + self._jsx_text_literal(subtitle))
             lines.append('        </p>')
         lines.append("        <div style={{ display: 'grid', "
-                     "gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', "
-                     "gap: 'var(--spacing-lg, 2rem)' }}>")
+                     "gridTemplateColumns: 'repeat(auto-fit, minmax(%dpx, 1fr))', "
+                     "gap: 'var(--spacing-lg, 2rem)' }}>" % self._card_min_width(vd))
         icons = ['Zap', 'TrendingUp', 'Layers', 'Shield', 'Sparkles', 'Box']
         for idx, feat in enumerate(features_src):
             desc = paragraphs[idx + 1] if idx + 1 < len(paragraphs) else ''
             icon = icons[idx % len(icons)]
             source_attr = str(wrapper['source']).replace('"', '') if wrapper else ''
-            item = ('          <div data-nexora-source="determinant:featuregrid" '
-                    "style={{ border: "
-                    "'1px solid var(--color-border, #e2e8f0)', borderRadius: "
-                    "'var(--radius-lg, 12px)', padding: "
-                    "'var(--spacing-lg, 2rem)' }}>")
+            if effect:
+                item = ('          <%s data-nexora-source="react_bits/%s" '
+                        "style={{ border: "
+                        "'1px solid var(--color-border, #e2e8f0)', borderRadius: "
+                        "'var(--radius-lg, 12px)', padding: "
+                        "'var(--spacing-lg, 2rem)' }}>" % (effect, effect))
+                closing = '          </%s>' % effect
+            else:
+                item = ('          <div data-nexora-source="determinant:featuregrid" '
+                        "style={{ border: "
+                        "'1px solid var(--color-border, #e2e8f0)', borderRadius: "
+                        "'var(--radius-lg, 12px)', padding: "
+                        "'var(--spacing-lg, 2rem)' }}>")
+                closing = '          </div>'
             lines.append(item)
             lines.append('            <%s size={22} aria-hidden="true" '
                          'style={{ color: ' % icon
@@ -2601,7 +3088,7 @@ class CodeGenerationEngine(BaseGenerationEngine):
                              "'var(--spacing-xs, 0.25rem)' }}>")
                 lines.append('              ' + self._jsx_text_literal(desc))
                 lines.append('            </p>')
-            lines.append('          </div>')
+            lines.append(closing)
         lines.append('        </div>')
         lines.append('      </div>')
         lines.append('    </section>')
@@ -2609,7 +3096,10 @@ class CodeGenerationEngine(BaseGenerationEngine):
         lines.append('}')
         code = '\n'.join(lines) + '\n'
         icons_used = sorted({icons[i % len(icons)] for i in range(len(features_src))})
-        return code, ["import { %s } from 'lucide-react'" % ', '.join(icons_used)]
+        imports = ["import { %s } from 'lucide-react'" % ', '.join(icons_used)]
+        if effect:
+            imports.append(effect_line)
+        return code, imports
 
     def _menuhighlights_api_bound(self, component_name, heading):
         """Phase 47.36 (products capability): MenuHighlights bound to the
@@ -2687,9 +3177,220 @@ class CodeGenerationEngine(BaseGenerationEngine):
             "import { useClientProducts } from '../lib/clientApi.js'",
         ]
 
+    def _catalog_surface(self, component_name):
+        """Phase 47.41: the ecommerce catalog surface (products capability,
+        /products route). ONE bounded discovery owner:
+
+          * search query, category, sort, pagination state live HERE (the
+            page-level catalog owner) — never inside ProductGrid
+          * product data comes from the ONE canonical clientApi module
+            (bounded catalog query; no arbitrary fields)
+          * ProductGrid/CatalogGrid remain presentation organisms: they
+            receive the resolved collection + callbacks
+          * PDP via /products?id=<id> — the URL query param is read with
+            the EXISTING routing mechanism (pathname routing is untouched;
+            no second router)
+          * add-to-cart consumes the app-level cart owner (useCart)
+
+        Returns (code, import lines); static-validation clean.
+        """
+        lines = []
+        lines.append('function %s() {' % component_name)
+        lines.append('  const cart = useCart();')
+        lines.append('  const [detailId] = useState(function() {')
+        lines.append("    return new URLSearchParams(window.location.search).get('id');")
+        lines.append('  });')
+        lines.append('  const [detailState, setDetailState] = '
+                     'useState({ loading: false, product: null, error: null });')
+        lines.append('  const [searchText, setSearchText] = useState(\'\');')
+        lines.append("  const [activeQuery, setActiveQuery] = useState('');")
+        lines.append("  const [category, setCategory] = useState('');")
+        lines.append("  const [sort, setSort] = useState('relevance');")
+        lines.append('  const [page, setPage] = useState(0);')
+        lines.append('  const [categories, setCategories] = useState([]);')
+        lines.append('  const [state, setState] = '
+                     'useState({ loading: true, products: [], total: 0, error: null });')
+        lines.append('  const PAGE_SIZE = 24;')
+        lines.append('  useEffect(function() {')
+        lines.append('    let cancelled = false;')
+        lines.append('    clientApi.categories()')
+        lines.append('      .then(function(cats) { if (!cancelled) setCategories(cats); })')
+        lines.append('      .catch(function() {});')
+        lines.append('    return function() { cancelled = true; };')
+        lines.append('  }, []);')
+        lines.append('  useEffect(function() {')
+        lines.append('    let cancelled = false;')
+        lines.append('    setState({ loading: true, products: [], total: 0, error: null });')
+        lines.append('    clientApi.catalog({')
+        lines.append('      query: activeQuery,')
+        lines.append('      categoryId: category ? Number(category) : null,')
+        lines.append('      sort: sort,')
+        lines.append('      limit: PAGE_SIZE,')
+        lines.append('      offset: page * PAGE_SIZE,')
+        lines.append('    })')
+        lines.append('      .then(function(data) {')
+        lines.append('        if (!cancelled) {')
+        lines.append('          setState({ loading: false, products: data.products, '
+                     'total: data.total, error: null });')
+        lines.append('        }')
+        lines.append('      })')
+        lines.append('      .catch(function() {')
+        lines.append('        if (!cancelled) {')
+        lines.append('          setState({ loading: false, products: [], total: 0, '
+                     "error: 'unavailable' });")
+        lines.append('        }')
+        lines.append('      });')
+        lines.append('    return function() { cancelled = true; };')
+        lines.append('  }, [activeQuery, category, sort, page]);')
+        lines.append('  useEffect(function() {')
+        lines.append('    if (!detailId) return undefined;')
+        lines.append('    let cancelled = false;')
+        lines.append('    setDetailState({ loading: true, product: null, error: null });')
+        lines.append('    clientApi.productDetail(detailId)')
+        lines.append('      .then(function(p) {')
+        lines.append('        if (!cancelled) {')
+        lines.append('          setDetailState({ loading: false, product: p, error: null });')
+        lines.append('        }')
+        lines.append('      })')
+        lines.append('      .catch(function() {')
+        lines.append('        if (!cancelled) {')
+        lines.append('          setDetailState({ loading: false, product: null, error: \'notfound\' });')
+        lines.append('        }')
+        lines.append('      });')
+        lines.append('    return function() { cancelled = true; };')
+        lines.append('  }, [detailId]);')
+        # --- PDP branch (/products?id=<id>) ---
+        lines.append('  if (detailId) {')
+        lines.append('    const dp = detailState.product;')
+        lines.append('    const detailProduct = dp ? {')
+        lines.append('      id: dp.id,')
+        lines.append('      name: dp.name,')
+        lines.append('      category: dp.category,')
+        lines.append('      sku: dp.sku,')
+        lines.append("      price: dp.price != null ? '$' + Number(dp.price).toFixed(2) : '',")
+        lines.append("      compareAt: dp.compareAt != null ? '$' + Number(dp.compareAt).toFixed(2) : null,")
+        lines.append('      inStock: dp.inStock !== false,')
+        lines.append('      description: dp.descriptionFull || dp.description,')
+        lines.append('      images: dp.image ? [{ src: dp.image, alt: dp.name }] : [],')
+        lines.append('    } : null;')
+        lines.append('    return (')
+        lines.append('      <ProductDetail')
+        lines.append('        data-nexora-source="native/ProductDetail"')
+        lines.append('        product={detailProduct}')
+        lines.append('        loading={detailState.loading}')
+        lines.append('        error={detailState.error}')
+        lines.append('        onAddToCart={function() {')
+        lines.append('          if (dp) {')
+        lines.append('            cart.add({ id: dp.id, name: dp.name, price: dp.price, image: dp.image });')
+        lines.append('          }')
+        lines.append('        }}')
+        lines.append('        onBack={function() { window.location.href = \'/products\'; }}')
+        lines.append('      />')
+        lines.append('    );')
+        lines.append('  }')
+        # --- catalog branch (bounded discovery) ---
+        lines.append('  const totalPages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));')
+        lines.append('  const products = state.products.map(function(p) {')
+        lines.append('    return {')
+        lines.append('      id: p.id,')
+        lines.append('      title: p.name,')
+        lines.append("      price: p.price != null ? '$' + Number(p.price).toFixed(2) : '',")
+        lines.append("      compareAt: p.compareAt != null ? '$' + Number(p.compareAt).toFixed(2) : null,")
+        lines.append('      category: p.category,')
+        lines.append('      inStock: p.inStock !== false,')
+        lines.append("      badge: p.inStock === false ? 'Unavailable' : '',")
+        lines.append("      image: p.image ? { src: p.image, alt: p.name } : null,")
+        lines.append('      onAddToCart: function() { cart.add(p); },')
+        lines.append("      href: '/products?id=' + p.id,")
+        lines.append('    };')
+        lines.append('  });')
+        lines.append('  const categoryOptions = categories.map(function(c) {')
+        lines.append('    return (')
+        lines.append('      <option key={c.id} value={c.id}>{c.name} ({c.productCount})</option>')
+        lines.append('    );')
+        lines.append('  });')
+        lines.append('  return (')
+        lines.append('    <section aria-label="product catalog" style={{ '
+                     "padding: 'var(--spacing-xl, 3rem) var(--spacing-md, 1rem)' }}>")
+        lines.append('      <div className="container">')
+        lines.append('        <form role="search" aria-label="Product search" onSubmit={function(e) {')
+        lines.append('          e.preventDefault();')
+        lines.append('          setPage(0);')
+        lines.append('          setActiveQuery(searchText.trim());')
+        lines.append('        }} style={{ display: \'flex\', gap: \'0.75rem\', flexWrap: \'wrap\', '
+                     'marginBottom: \'1.25rem\' }}>')
+        lines.append('          <input type="search" value={searchText}')
+        lines.append('            onChange={function(e) { setSearchText(e.target.value); }}')
+        lines.append('            placeholder="Search products"')
+        lines.append('            aria-label="Search products"')
+        lines.append("            style={{ flex: '1 1 260px', padding: '10px 14px', fontSize: '0.95rem',")
+        lines.append("              border: '1px solid var(--color-border, #e2e8f0)',")
+        lines.append("              borderRadius: 'var(--radius-md, 8px)', background: 'var(--color-background, #fff)',")
+        lines.append("              color: 'var(--color-text, #1c1917)' }} />")
+        lines.append('          <Button variant="primary" type="submit">Search</Button>')
+        lines.append('        </form>')
+        lines.append('        <div aria-label="Catalog filters" style={{ display: \'flex\', gap: \'0.75rem\', '
+                     'flexWrap: \'wrap\', alignItems: \'center\', marginBottom: \'1.5rem\' }}>')
+        lines.append('          <select value={category}')
+        lines.append('            onChange={function(e) { setPage(0); setCategory(e.target.value); }}')
+        lines.append('            aria-label="Filter by category"')
+        lines.append("            style={{ padding: '9px 12px', fontSize: '0.9rem',")
+        lines.append("              border: '1px solid var(--color-border, #e2e8f0)',")
+        lines.append("              borderRadius: 'var(--radius-md, 8px)', background: 'var(--color-background, #fff)',")
+        lines.append("              color: 'var(--color-text, #1c1917)' }}>")
+        lines.append('            <option value="">All categories</option>')
+        lines.append('            {categoryOptions}')
+        lines.append('          </select>')
+        lines.append('          <select value={sort}')
+        lines.append('            onChange={function(e) { setPage(0); setSort(e.target.value); }}')
+        lines.append('            aria-label="Sort products"')
+        lines.append("            style={{ padding: '9px 12px', fontSize: '0.9rem',")
+        lines.append("              border: '1px solid var(--color-border, #e2e8f0)',")
+        lines.append("              borderRadius: 'var(--radius-md, 8px)', background: 'var(--color-background, #fff)',")
+        lines.append("              color: 'var(--color-text, #1c1917)' }}>")
+        lines.append("            <option value=\"relevance\">Newest</option>")
+        lines.append("            <option value=\"price_asc\">Price: Low to High</option>")
+        lines.append("            <option value=\"price_desc\">Price: High to Low</option>")
+        lines.append("            <option value=\"name_asc\">Name: A to Z</option>")
+        lines.append('          </select>')
+        lines.append('        </div>')
+        lines.append('        {state.error ? (')
+        lines.append('          <p role="alert" style={{ textAlign: \'center\', padding: \'2rem 0\', '
+                     "color: 'var(--color-secondary, #6f6a63)' }}>")
+        lines.append('            The catalog is temporarily unavailable. Please try again shortly.')
+        lines.append('          </p>')
+        lines.append('        ) : (')
+        lines.append('          <CatalogGrid data-nexora-source="native/CatalogGrid"')
+        lines.append('            products={products}')
+        lines.append('            loading={state.loading}')
+        lines.append('            resultCount={state.total}')
+        lines.append('            emptyMessage={activeQuery ? '
+                     "'No products match your search.' : 'The catalog is empty.'} />")
+        lines.append('        )}')
+        lines.append('        {state.total > PAGE_SIZE ? (')
+        lines.append('          <Pagination')
+        lines.append('            currentPage={page + 1}')
+        lines.append('            totalPages={totalPages}')
+        lines.append('            onPageChange={function(next) { setPage(next - 1); }} />')
+        lines.append('        ) : null}')
+        lines.append('      </div>')
+        lines.append('    </section>')
+        lines.append('  )')
+        lines.append('}')
+        code = '\n'.join(lines) + '\n'
+        return code, [
+            "import { useState, useEffect } from 'react'",
+            "import CatalogGrid from '../components/CatalogGrid.jsx'",
+            "import ProductDetail from '../components/ProductDetail.jsx'",
+            "import Pagination from '../components/Pagination.jsx'",
+            "import Button from '../components/Button.jsx'",
+            "import clientApi from '../lib/clientApi.js'",
+            "import { useCart } from '../lib/cart.js'",
+        ]
+
     def _pattern_menuhighlights(self, component_name, artifact, heading, body,
                                 wrapper, stock_images, valid_routes, section_index,
-                                page_sections):
+                                page_sections, available_effects=(), page_path=''):
         """Restaurant featured menu items — composes the native ProductGrid
         organism from the ContentArtifact's STRUCTURED items when they
         carry item+price data (canonical — ADR-0079); otherwise the
@@ -2699,6 +3400,13 @@ class CodeGenerationEngine(BaseGenerationEngine):
         # canonical source — live products from the client's own Odoo DB
         # replace the compile-time static items (single source; no
         # ambiguous precedence between static and live data).
+        # Phase 47.41: on the ecommerce catalog route (products capability)
+        # the /products page composes the FULL catalog surface (bounded
+        # discovery state + ProductGrid presentation + PDP via ?id=) —
+        # the home/restaurant featured strip keeps the 47.36 contract.
+        if ('products' in self._client_api_capabilities(artifact)
+                and page_path in ('/products', '/shop')):
+            return self._catalog_surface(component_name)
         if 'products' in self._client_api_capabilities(artifact):
             return self._menuhighlights_api_bound(component_name, heading)
         # Phase 47.27 (ADR-0079): structured items with prices compose the
@@ -2775,7 +3483,8 @@ class CodeGenerationEngine(BaseGenerationEngine):
         # Grid fallback: reuse the services-grid composition, menu-typed.
         result = self._pattern_servicesgrid(
             component_name, artifact, heading, body, wrapper,
-            stock_images, valid_routes, section_index, page_sections)
+            stock_images, valid_routes, section_index, page_sections,
+            available_effects=available_effects)
         if result is None:
             return None
         code, imports = result
@@ -2807,17 +3516,24 @@ class CodeGenerationEngine(BaseGenerationEngine):
 
     def _pattern_gallery(self, component_name, artifact, heading, body,
                           wrapper, stock_images, valid_routes, section_index,
-                          page_sections):
+                          page_sections, available_effects=(), page_path=''):
         gallery = [v for k, v in sorted(stock_images.items())
                    if k.startswith('stock_gallery')]
         if not gallery:
             return None
+        # Phase 47.40: gallery geometry from the visual direction —
+        # bounded to three implemented variants (uniform grid / feature
+        # lead image / masonry columns). Pure CSS differences; the same
+        # stock imagery and tokens.
+        vd = self._visual_direction(artifact)
+        geometry = self._gallery_geometry(vd)
         lines = []
         lines.append('function %s() {' % component_name)
         lines.append('  return (')
         lines.append('    <section aria-label="gallery section" style={{ '
-                     "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)' }}>")
-        lines.append('      <div style={{ maxWidth: 1080, margin: \'0 auto\' }}>')
+                      "padding: 'var(--spacing-xl, 4rem) var(--spacing-md, 1rem)' }}>")
+        lines.append("      <div style={{ maxWidth: %d, margin: '0 auto' }}>"
+                     % self._section_max_width(vd, 1080))
         if heading:
             lines.append('        <h2 style={{ fontFamily: '
                          "'var(--font-heading, Inter, sans-serif)', fontSize: "
@@ -2826,18 +3542,51 @@ class CodeGenerationEngine(BaseGenerationEngine):
                          "'var(--color-text, #0f172a)' }}>")
             lines.append('          ' + self._jsx_text_literal(heading))
             lines.append('        </h2>')
-        lines.append('        <div style={{ display: \'grid\', '
-                     'gridTemplateColumns: '
-                     '\'repeat(auto-fit, minmax(260px, 1fr))\', gap: '
-                     "'var(--spacing-md, 1rem)' }}>")
-        for img in gallery:
-            alt = (img.get('alt') or 'gallery image').replace('"', '')
-            lines.append('          <img src="%s" alt="%s" loading="lazy" '
-                         'style={{ width: ' % (img.get('path'), alt)
-                         + "'100%', height: '100%', objectFit: 'cover', "
-                         "aspectRatio: '4 / 3', borderRadius: "
-                         "'var(--radius-md, 8px)' }} />")
-        lines.append('        </div>')
+        if geometry == 'masonry':
+            # Masonry: CSS multi-columns with natural image heights —
+            # the immersive/portfolio presentation.
+            lines.append("        <div style={{ columns: '320px', "
+                         "columnGap: 'var(--spacing-md, 1rem)' }}>")
+            for img in gallery:
+                alt = (img.get('alt') or 'gallery image').replace('"', '')
+                lines.append('          <img src="%s" alt="%s" loading="lazy" '
+                             'style={{ width: ' % (img.get('path'), alt)
+                             + "'100%', height: 'auto', display: 'block', "
+                             "marginBottom: 'var(--spacing-md, 1rem)', "
+                             "borderRadius: 'var(--radius-md, 8px)' }} />")
+            lines.append('        </div>')
+        elif geometry == 'feature':
+            # Feature: the first image spans two columns (lead image),
+            # the rest fill the uniform grid — the editorial presentation.
+            lines.append("        <div style={{ display: 'grid', "
+                         "gridTemplateColumns: "
+                         "'repeat(auto-fit, minmax(280px, 1fr))', gap: "
+                         "'var(--spacing-md, 1rem)' }}>")
+            for idx, img in enumerate(gallery):
+                alt = (img.get('alt') or 'gallery image').replace('"', '')
+                span = ("gridColumn: 'span 2', " if idx == 0 else '')
+                aspect = ("aspectRatio: '16 / 10', " if idx == 0
+                          else "aspectRatio: '4 / 3', ")
+                lines.append('          <img src="%s" alt="%s" loading="lazy" '
+                             'style={{ width: ' % (img.get('path'), alt)
+                             + "'100%', height: '100%', objectFit: 'cover', "
+                             + aspect + span
+                             + "borderRadius: 'var(--radius-md, 8px)' }} />")
+            lines.append('        </div>')
+        else:
+            # Uniform grid (previous behavior — centered/grid directions).
+            lines.append("        <div style={{ display: 'grid', "
+                         "gridTemplateColumns: "
+                         "'repeat(auto-fit, minmax(260px, 1fr))', gap: "
+                         "'var(--spacing-md, 1rem)' }}>")
+            for img in gallery:
+                alt = (img.get('alt') or 'gallery image').replace('"', '')
+                lines.append('          <img src="%s" alt="%s" loading="lazy" '
+                             'style={{ width: ' % (img.get('path'), alt)
+                             + "'100%', height: '100%', objectFit: 'cover', "
+                             "aspectRatio: '4 / 3', borderRadius: "
+                             "'var(--radius-md, 8px)' }} />")
+            lines.append('        </div>')
         lines.append('      </div>')
         lines.append('    </section>')
         lines.append('  )')
@@ -3012,7 +3761,8 @@ class CodeGenerationEngine(BaseGenerationEngine):
                 merged_lines.append("import %s from '%s'" % (', '.join(parts), spec))
         return '\n'.join(merged_lines) + '\n\n' + '\n'.join(body_lines).lstrip('\n')
 
-    def _build_app_entry(self, component_hierarchy: dict) -> str:
+    def _build_app_entry(self, component_hierarchy: dict,
+                         artifact: Optional[WebsiteGenerationArtifact] = None) -> str:
         pages = [
             data.get('path', '/')
             for data in component_hierarchy.values()
@@ -3026,18 +3776,37 @@ class CodeGenerationEngine(BaseGenerationEngine):
             filename = 'index' if path == '/' else f"{path.strip('/')}.tsx"
             imports.append(f"import {module_name} from './pages/{filename}'")
             routes.append(f"  '{path}': {module_name},")
-
-        return (
-            "import React from 'react'\n"
-            + "\n".join(imports)
-            + "\n\nconst routes = {\n"
-            + "\n".join(routes)
-            + "\n}\n\nfunction App() {\n"
+        # Phase 47.41: for products-capable projects the app-level cart
+        # owner (provider-scaffold src/lib/cart.js) wraps the router at
+        # the entry composition point — ONE state owner above all pages.
+        cart_wrap = 'products' in self._client_api_capabilities(artifact) if artifact else False
+        if cart_wrap:
+            imports.append("import { CartProvider } from './lib/cart.js'")
+        body = (
+            "function App() {\n"
             + "  const Page = routes[window.location.pathname] || routes['/']\n"
             + "  return (\n"
             + "    <SiteLayout>\n"
             + "      <Page />\n"
             + "    </SiteLayout>\n"
-            + "  )\n}\n\nexport default App\n"
+            + "  )\n"
+            + "}\n\nexport default App\n"
+        )
+        if cart_wrap:
+            body = body.replace(
+                "export default App\n",
+                "export default function AppWithCart() {\n"
+                "  return (\n"
+                "    <CartProvider>\n"
+                "      <App />\n"
+                "    </CartProvider>\n"
+                "  )\n"
+                "}\n")
+        return (
+            "import React from 'react'\n"
+            + "\n".join(imports)
+            + "\n\nconst routes = {\n"
+            + "\n".join(routes)
+            + "\n}\n\n" + body
         )
 
