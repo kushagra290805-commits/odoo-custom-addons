@@ -33,20 +33,20 @@ class ResConfigSettings(models.TransientModel):
 
     nexora_cost_router_tier_simple = fields.Char(
         string='Simple Task Fallback Chain',
-        help='Comma-separated list of providers (e.g. openrouter,ollama) for simple tasks.',
-        default='openrouter,ollama',
+        help='Comma-separated list of providers (e.g. openrouter) for simple tasks.',
+        default='openrouter',
     )
     
     nexora_cost_router_tier_medium = fields.Char(
         string='Medium Task Fallback Chain',
         help='Comma-separated list of providers for medium tasks.',
-        default='openrouter,ollama',
+        default='openrouter',
     )
     
     nexora_cost_router_tier_complex = fields.Char(
         string='Complex Task Fallback Chain',
         help='Comma-separated list of providers for complex tasks.',
-        default='openrouter,ollama',
+        default='openrouter',
     )
 
     def set_values(self):
@@ -54,9 +54,9 @@ class ResConfigSettings(models.TransientModel):
         ai_service = self.env['nexora.ai_configuration_service']
         
         # Save routing config
-        ai_service.set_config('core', 'cost_router_tier_simple', self.nexora_cost_router_tier_simple or 'openrouter,ollama')
-        ai_service.set_config('core', 'cost_router_tier_medium', self.nexora_cost_router_tier_medium or 'openrouter,ollama')
-        ai_service.set_config('core', 'cost_router_tier_complex', self.nexora_cost_router_tier_complex or 'openrouter,ollama')
+        ai_service.set_config('core', 'cost_router_tier_simple', self.nexora_cost_router_tier_simple or 'openrouter')
+        ai_service.set_config('core', 'cost_router_tier_medium', self.nexora_cost_router_tier_medium or 'openrouter')
+        ai_service.set_config('core', 'cost_router_tier_complex', self.nexora_cost_router_tier_complex or 'openrouter')
 
     @api.model
     def get_values(self):
@@ -65,9 +65,9 @@ class ResConfigSettings(models.TransientModel):
         
         # Load routing config
         res.update({
-            'nexora_cost_router_tier_simple': ai_service.get_config('core', 'cost_router_tier_simple', 'openrouter,ollama'),
-            'nexora_cost_router_tier_medium': ai_service.get_config('core', 'cost_router_tier_medium', 'openrouter,ollama'),
-            'nexora_cost_router_tier_complex': ai_service.get_config('core', 'cost_router_tier_complex', 'openrouter,ollama'),
+            'nexora_cost_router_tier_simple': ai_service.get_config('core', 'cost_router_tier_simple', 'openrouter'),
+            'nexora_cost_router_tier_medium': ai_service.get_config('core', 'cost_router_tier_medium', 'openrouter'),
+            'nexora_cost_router_tier_complex': ai_service.get_config('core', 'cost_router_tier_complex', 'openrouter'),
         })
                     
         return res

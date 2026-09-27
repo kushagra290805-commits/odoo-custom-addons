@@ -9,16 +9,7 @@ class AICatalogSyncLog(models.Model):
 
     provider = fields.Selection([
         ('openrouter', 'OpenRouter'),
-        ('ollama', 'Ollama'),
-        ('nvidia', 'NVIDIA Build'),
-        ('openai', 'OpenAI'),
-        ('claude', 'Claude'),
-        ('anthropic', 'Anthropic'),
-        ('gemini', 'Gemini'),
-        ('generic_openai', 'Generic OpenAI'),
-        ('airouter', 'AIRouter.in'),
-        ('groq', 'Groq'),
-        ('test', 'Test Provider')
+        ('ai_credits', 'AIcredits')
     ], string='Provider', required=True, index=True)
     
     sync_date = fields.Datetime('Sync Date', default=fields.Datetime.now, required=True, index=True)

@@ -45,10 +45,6 @@ class NexoraProviderRegistry(models.Model):
     
     compatibility_profile = fields.Selection([
         ('openai_compatible', 'OpenAI Compatible'),
-        ('anthropic_native', 'Anthropic Native'),
-        ('gemini_native', 'Gemini Native'),
-        ('ollama_native', 'Ollama Native'),
-        ('nvidia_nim', 'NVIDIA NIM'),
         ('custom', 'Custom')
     ], string='Compatibility Profile', default='openai_compatible')
     
@@ -253,8 +249,7 @@ class NexoraProviderRegistry(models.Model):
         if config_changed:
             for rec in self:
                 # Recompute config_state
-                needs_key = rec.compatibility_profile not in ['ollama_native', 'local']
-                new_config_state = 'missing_key' if needs_key and not rec.api_key else 'valid'
+                new_config_state = 'missing_key' if not rec.api_key else 'valid'
                 if rec.config_state != new_config_state:
                     rec.config_state = new_config_state
                 # Delegate catalog invalidation to Catalog Service

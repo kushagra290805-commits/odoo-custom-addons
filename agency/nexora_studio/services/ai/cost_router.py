@@ -3,14 +3,14 @@
 Cost Router - intelligent routing based on task complexity.
 
 # Development Configuration (Phase 9B):
-#     All tiers default to openrouter -> ollama fallback.
+#     All tiers default to openrouter.
 #     This is fully configurable via ir.config_parameter:
-#         nexora.cost_router_tier_simple   = openrouter,ollama
-#         nexora.cost_router_tier_medium   = openrouter,ollama
-#         nexora.cost_router_tier_complex  = openrouter,ollama
+#         nexora.cost_router_tier_simple   = openrouter
+#         nexora.cost_router_tier_medium   = openrouter
+#         nexora.cost_router_tier_complex  = openrouter
 #
 # Production override example:
-#     nexora.cost_router_tier_complex = claude,openai,gemini,openrouter,ollama
+#     nexora.cost_router_tier_complex = ai_credits,openrouter
 """
 from odoo import models, api
 from odoo.exceptions import UserError
@@ -20,11 +20,11 @@ from .ai_execution_context import ProviderResolution, AIExecutionContext
 _logger = logging.getLogger(__name__)
 
 # Default tier -> adapter mapping (DEVELOPMENT configuration)
-# OpenRouter is first in every tier, Ollama is the universal fallback.
+# OpenRouter is first in every tier, OpenRouter is the universal fallback.
 _DEFAULT_TIERS = {
-    'simple':  ['openrouter', 'ollama'],
-    'medium':  ['openrouter', 'ollama'],
-    'complex': ['openrouter', 'ollama'],
+    'simple':  ['openrouter'],
+    'medium':  ['openrouter'],
+    'complex': ['openrouter'],
 }
 
 # Task type -> tier mapping

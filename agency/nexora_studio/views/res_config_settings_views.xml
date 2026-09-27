@@ -15,7 +15,7 @@
                     </block>
                     
                     <block title="Routing Configuration" name="nexora_routing_settings">
-                        <setting string="Simple Tasks" help="Comma-separated providers (e.g. openrouter,ollama)">
+                        <setting string="Simple Tasks" help="Comma-separated providers (e.g. openrouter,ai_credits)">
                             <field name="nexora_cost_router_tier_simple" style="width: 100%;"/>
                         </setting>
                         <setting string="Medium Tasks" help="Comma-separated providers">

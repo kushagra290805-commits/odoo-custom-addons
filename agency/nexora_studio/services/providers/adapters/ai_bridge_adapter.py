@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from odoo.addons.nexora_studio.services.providers.execution_models import ProviderExecutionRequest, ProviderExecutionResult
 import time
 from typing import Dict, Any, List
@@ -20,7 +20,7 @@ _logger = logging.getLogger(__name__)
 
 class UnifiedAIProviderProxy(BaseProvider):
     """
-    Bridge adapter wrapping legacy AI providers (e.g., openai_adapter, nvidia_adapter)
+    Bridge adapter wrapping legacy AI providers (e.g., generic_openai_adapter)
     into the Unified Provider Platform (ADR-0031).
     """
 

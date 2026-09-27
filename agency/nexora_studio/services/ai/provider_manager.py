@@ -20,12 +20,7 @@ from .provider_execution_policy import RateLimitException
 _logger = logging.getLogger(__name__)
 
 _ADAPTER_MODELS = {
-    'ollama_native': 'nexora.ai_adapter.ollama',
     'openai_compatible': 'nexora.ai_adapter.generic_openai',
-    'nvidia_nim': 'nexora.ai_adapter.nvidia',
-    'anthropic_native': 'nexora.ai_adapter.claude',
-    'gemini_native': 'nexora.ai_adapter.gemini',
-    'custom': 'nexora.ai_adapter.test',
 }
 
 _PROVIDER_ADAPTER_OVERRIDE = {
@@ -43,8 +38,6 @@ class AIProviderManager(models.AbstractModel):
     def _get_adapters(self):
         """Return dict {provider_key: adapter_instance} dynamically based on registry."""
         adapters = {}
-        # Ensure 'test' is always available if needed
-        adapters['test'] = self.env['nexora.ai_adapter.test']
         
         registries = self.env['nexora.provider.registry'].search([('category', '=', 'ai')])
         for reg in registries:

@@ -20,18 +20,7 @@ class AIModelCatalog(models.Model):
 
     provider = fields.Selection([
         ('openrouter', 'OpenRouter'),
-        ('ollama', 'Ollama'),
-        ('nvidia', 'NVIDIA Build'),
-        ('openai', 'OpenAI'),
-        ('claude', 'Claude'),
-        ('anthropic', 'Anthropic'),
-        ('gemini', 'Gemini'),
-        ('generic_openai', 'Generic OpenAI'),
-        ('airouter', 'AIRouter.in'),
-        ('groq', 'Groq'),
-        ('experiential_labs', 'Experiential Labs'),
-        ('ai_credits', 'AIcredits'),
-        ('test', 'Test Provider')
+        ('ai_credits', 'AIcredits')
     ], string='Provider', required=True, index=True)
     
     model_id = fields.Char('Model ID', required=True, index=True)

@@ -39,7 +39,7 @@ class TestRequestScopedSelection(unittest.TestCase):
         self.config.resolve_model_record.return_value.capability_ids.mapped.return_value = ['chat']
         self.env['nexora.ai_configuration_service'] = self.config
         self.env['nexora.provider_health_service'] = MagicMock()
-        self.adapters = {key: MagicMock() for key in ('openrouter', 'experiential_labs', 'test')}
+        self.adapters = {key: MagicMock() for key in ('openrouter', 'ai_credits', 'test')}
         for adapter in self.adapters.values():
             adapter.is_available.return_value = True
             adapter.chat_completion.return_value = {'response': 'OK', 'error': None}
@@ -59,7 +59,7 @@ class TestRequestScopedSelection(unittest.TestCase):
         self.policy.execute.side_effect = lambda ctx, fn: fn(ctx.timeout)
         self.env['nexora.provider_execution_policy'] = self.policy
         self.runtime = AIRuntimeAdapter(self.pm)
-        self.payload = {'prompt': 'Reply OK.', 'provider': 'experiential_labs',
+        self.payload = {'prompt': 'Reply OK.', 'provider': 'ai_credits',
                         'model': 'glm-5.3-flash', 'max_tokens': 8, 'retries': 0}
         self.override = patch.dict('os.environ', {'NEXORA_TEST_PROVIDER': ''})
         self.override.start()
@@ -67,10 +67,10 @@ class TestRequestScopedSelection(unittest.TestCase):
 
     def test_explicit_chain_uses_only_selected_adapter_and_model(self):
         result = self.runtime.generate('generate_content', self.payload)
-        self.assertEqual(result['provider'], 'experiential_labs')
+        self.assertEqual(result['provider'], 'ai_credits')
         self.assertEqual(result['model'], 'glm-5.3-flash')
         self.assertFalse(result['fallback_occurred'])
-        call = self.adapters['experiential_labs'].chat_completion.call_args
+        call = self.adapters['ai_credits'].chat_completion.call_args
         self.assertEqual(call.kwargs['model'], 'glm-5.3-flash')
         self.assertEqual(call.args[0][-1]['content'], 'Reply OK.')
         self.router.get_fallback_chain.assert_not_called()
@@ -88,7 +88,7 @@ class TestRequestScopedSelection(unittest.TestCase):
         self.router.get_fallback_chain.assert_called_once()
 
     def test_partial_or_invalid_selection_rejected(self):
-        for provider, model in [('experiential_labs', ''), ('', 'glm-5.3-flash'),
+        for provider, model in [('ai_credits', ''), ('', 'glm-5.3-flash'),
                                 (' ', 'glm-5.3-flash'), ([], 'glm-5.3-flash')]:
             with self.subTest(provider=provider, model=model), self.assertRaises(Exception):
                 self.runtime.generate('generate_content', dict(self.payload, provider=provider, model=model))
@@ -116,26 +116,26 @@ class TestRequestScopedSelection(unittest.TestCase):
             self.config.validate_configuration.return_value = {'valid': False, 'errors': [{'message': message}]}
             with self.subTest(message=message), self.assertRaises(Exception):
                 self.runtime.generate('generate_content', self.payload)
-        self.config.validate_configuration.assert_called_with('experiential_labs', 'glm-5.3-flash')
+        self.config.validate_configuration.assert_called_with('ai_credits', 'glm-5.3-flash')
         self.policy.execute.assert_not_called()
 
     def test_unavailable_provider_rejected(self):
-        self.adapters['experiential_labs'].is_available.return_value = False
+        self.adapters['ai_credits'].is_available.return_value = False
         with self.assertRaises(Exception):
             self.runtime.generate('generate_content', self.payload)
         self.policy.execute.assert_not_called()
 
     def test_required_capabilities_apply_to_exact_requested_model(self):
         self.pm.route_request('chat', 'OK', dict(self.payload, required_capabilities=['chat']))
-        self.config.resolve_model_record.assert_called_with('experiential_labs', 'glm-5.3-flash')
+        self.config.resolve_model_record.assert_called_with('ai_credits', 'glm-5.3-flash')
         with self.assertRaises(UserError):
             self.pm.route_request('chat', 'OK', dict(self.payload, required_capabilities=['vision']))
         self.assertEqual(self.policy.execute.call_count, 1)
 
     def test_explicit_context_supported(self):
         self.pm.route_request('chat', 'OK', ctx=AIExecutionContext(
-            provider='experiential_labs', model='glm-5.3-flash'))
-        self.adapters['experiential_labs'].chat_completion.assert_called_once()
+            provider='ai_credits', model='glm-5.3-flash'))
+        self.adapters['ai_credits'].chat_completion.assert_called_once()
 
     def test_conflicting_context_rejected(self):
         with self.assertRaises(UserError):
@@ -174,7 +174,7 @@ class TestRequestScopedSelection(unittest.TestCase):
         self.policy.execute.assert_called_once()
 
     def test_adapter_error_cannot_be_recast_as_success_by_policy(self):
-        self.adapters['experiential_labs'].chat_completion.return_value = {'error': 'bad request'}
+        self.adapters['ai_credits'].chat_completion.return_value = {'error': 'bad request'}
         with self.assertRaises(Exception):
             self.runtime.generate('chat', self.payload)
         self.adapters['openrouter'].chat_completion.assert_not_called()
@@ -188,7 +188,7 @@ class TestRequestScopedSelection(unittest.TestCase):
         self.runtime.generate('chat', {'prompt': 'Default'})
         self.assertEqual(self.policy.execute.call_count, 2)
         self.assertEqual(self.router.get_fallback_chain.call_count, 2)
-        self.adapters['experiential_labs'].chat_completion.assert_called_once()
+        self.adapters['ai_credits'].chat_completion.assert_called_once()
 
     def test_real_execution_policy_transport_failure_is_closed(self):
         policy = SimpleNamespace(_is_circuit_open=lambda p: False,
@@ -198,11 +198,11 @@ class TestRequestScopedSelection(unittest.TestCase):
         policy._build_error = MethodType(ProviderExecutionPolicy._build_error, policy)
         policy.execute = MethodType(ProviderExecutionPolicy.execute, policy)
         self.env['nexora.provider_execution_policy'] = policy
-        self.adapters['experiential_labs'].chat_completion.side_effect = RuntimeError('transport failed')
+        self.adapters['ai_credits'].chat_completion.side_effect = RuntimeError('transport failed')
         result = self.runtime.generate('chat', self.payload)
         self.assertTrue(result['error'])
         self.assertFalse(result['fallback_occurred'])
-        self.adapters['experiential_labs'].chat_completion.assert_called_once()
+        self.adapters['ai_credits'].chat_completion.assert_called_once()
         self.adapters['openrouter'].chat_completion.assert_not_called()
 
 

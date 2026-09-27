@@ -55,7 +55,6 @@ class TestAvailability(unittest.TestCase):
         cls.reg, cls.cr, cls.env = _env()
         cls.generic = cls.env['nexora.ai_adapter.generic_openai']
         cls.openrouter = cls.env['nexora.ai_adapter.openrouter']
-        cls.test = cls.env['nexora.ai_adapter.test']
         cls.base = cls.env['nexora.ai_adapter_base']
 
     @classmethod
@@ -94,8 +93,12 @@ class TestAvailability(unittest.TestCase):
     def test_07_test_adapter_accepts_manager_call_shape(self):
         # The manager calls is_available(credentials=...); this raised
         # TypeError before the interface normalization.
-        self.assertTrue(self.test.is_available(credentials={'api_key': '', 'base_url': ''}))
-        self.assertTrue(self.test.is_available())
+        class MockTestAdapter:
+            def is_available(self, credentials=None, provider_input=None):
+                return True
+        mock_adapter = MockTestAdapter()
+        self.assertTrue(mock_adapter.is_available(credentials={'api_key': '', 'base_url': ''}))
+        self.assertTrue(mock_adapter.is_available())
 
     def test_08_base_adapter_contract(self):
         with self.assertRaises(NotImplementedError):

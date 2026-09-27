@@ -180,8 +180,7 @@ class BaseAIAdapter(models.AbstractModel):
             res.config_valid = False
             return res
             
-        needs_key = provider_input.compatibility_profile not in ['ollama_native', 'local']
-        if needs_key and not provider_input.api_key:
+        if not provider_input.api_key:
             res.failure_reason = 'Missing API Key'
             res.config_valid = False
             res.authentication_state = 'no_key'
