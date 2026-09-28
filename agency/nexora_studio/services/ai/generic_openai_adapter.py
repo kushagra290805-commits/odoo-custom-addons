@@ -176,14 +176,19 @@ class GenericOpenAIAdapter(models.AbstractModel):
         r.raise_for_status()
         
         data = r.json()
-        choice = data.get('choices', [{}])[0]
+        choice = data.get('choices', [{}])[0] if data.get('choices') else {}
         usage = data.get('usage', {})
         
+        content = choice.get('message', {}).get('content')
+        if content is None:
+            _logger.error(f"generic_openai_adapter: content is None. Raw response: {r.text}")
+            content = ''
+
         return {
             'provider': 'generic_openai',
             'model': model,
             'prompt': prompt_text,
-            'response': choice.get('message', {}).get('content', ''),
+            'response': content,
             'token_usage': usage.get('total_tokens', 0),
             'prompt_tokens': usage.get('prompt_tokens', 0),
             'completion_tokens': usage.get('completion_tokens', 0),

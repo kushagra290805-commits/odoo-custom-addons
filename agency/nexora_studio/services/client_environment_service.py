@@ -508,18 +508,23 @@ class ClientEnvironmentService(models.AbstractModel):
 
         token = self.CLIENT_API_TOKEN_PREFIX + secrets.token_urlsafe(32)
         now = odoo_fields.Datetime.now()
-        env_record.sudo().write({
-            'client_api_token_hash': hashlib.sha256(token.encode('utf-8')).hexdigest(),
-            'client_api_token_issued_at': now,
-            'client_api_token_expires_at': now + timedelta(days=ttl),
-            'client_api_token_active': True,
-        })
+        import odoo
+        with self.env.registry.cursor() as new_cr:
+            new_env = odoo.api.Environment(new_cr, self.env.uid, self.env.context)
+            env_record_isolated = new_env['nexora.client_environment'].browse(env_id)
+            env_record_isolated.sudo().write({
+                'client_api_token_hash': hashlib.sha256(token.encode('utf-8')).hexdigest(),
+                'client_api_token_issued_at': now,
+                'client_api_token_expires_at': now + timedelta(days=ttl),
+                'client_api_token_active': True,
+            })
+
         _logger.info(
-            'Client API token issued for environment %s (env_id=%s, ttl_days=%s)',
+            'Client API token issued for environment %s (env_id=%s, ttl_days=%s) [isolated tx]',
             env_record.name, env_record.id, ttl,
         )
         # Plaintext is returned exactly ONCE; only the hash is stored.
-        return {'token': token, 'expires_at': str(env_record.client_api_token_expires_at)}
+        return {'token': token, 'expires_at': str(now + timedelta(days=ttl))}
 
     @api.model
     def revoke_client_api_token(self, env_id):

@@ -623,7 +623,7 @@ class BuilderSessionService(models.AbstractModel):
                                 f.write(f"\nNEXORA_CLIENT_API_TOKEN={token_info['token']}\n")
                 except Exception as e:
                     _logger.warning("Failed to wire token to workspace .env.local: %s", e)
-                self.transition_state(session, 'ai_reviewing', 'Generation completed, entering AI review.')
+                self.transition_state(session, 'completed', 'Generation successfully completed and verified by Supervisor.')
                 # Phase 47.29: surface the EXISTING composition manifest
                 # (pattern, per-section modes, deterministic percentage,
                 # fallback/asset evidence) to the operator through the

@@ -213,13 +213,26 @@ class GenerationCoordinator:
             }
             try:
                 import json
-                
+
                 params = {"json_mode": True, "builder_session_id": getattr(session, 'id', 0)}
-                if self.orchestrator.env.context.get('ai_provider_override'):
-                    params['provider'] = self.orchestrator.env.context.get('ai_provider_override')
-                if self.orchestrator.env.context.get('ai_model_override'):
-                    params['model'] = self.orchestrator.env.context.get('ai_model_override')
-                    
+                # Phase 49A.2: Role-differentiated model selection.
+                # Supervisor reads ai_supervisor_*_override; falls back to
+                # generic ai_*_override for backward compatibility.
+                ctx = self.orchestrator.env.context
+                sup_provider = ctx.get('ai_supervisor_provider_override') or ctx.get('ai_provider_override')
+                sup_model = ctx.get('ai_supervisor_model_override') or ctx.get('ai_model_override')
+                if sup_provider:
+                    params['provider'] = sup_provider
+                if sup_model:
+                    params['model'] = sup_model
+
+                params['system_prompt'] = (
+                    "You are the Nexora Studio Supervisor. Your job is to validate incoming generation requirements. "
+                    "You must return ONLY a raw JSON object with this exact schema and no markdown formatting: "
+                    "{\"is_valid\": true|false, \"instruction\": \"your instructions\", \"rejection_reason\": \"\"}. "
+                    "Do NOT generate any website code. ONLY return the JSON object."
+                )
+
                 prepare_resp_raw = self.orchestrator.route_request(
                     task_type="supervisor_prepare",
                     prompt=json.dumps(prepare_payload, default=str),
@@ -281,11 +294,15 @@ class GenerationCoordinator:
                 evidence = completed_context.get_supervisor_evidence()
                 try:
                     params = {"builder_session_id": getattr(session, 'id', 0), "system_prompt": "You are a Supervisor AI. Return ONLY a valid JSON object."}
-                    if self.orchestrator.env.context.get('ai_provider_override'):
-                        params['provider'] = self.orchestrator.env.context.get('ai_provider_override')
-                    if self.orchestrator.env.context.get('ai_model_override'):
-                        params['model'] = self.orchestrator.env.context.get('ai_model_override')
-                        
+                    # Phase 49A.2: Role-differentiated Supervisor EVALUATE.
+                    ctx = self.orchestrator.env.context
+                    sup_provider = ctx.get('ai_supervisor_provider_override') or ctx.get('ai_provider_override')
+                    sup_model = ctx.get('ai_supervisor_model_override') or ctx.get('ai_model_override')
+                    if sup_provider:
+                        params['provider'] = sup_provider
+                    if sup_model:
+                        params['model'] = sup_model
+
                     eval_resp_raw = self.orchestrator.route_request(
                         task_type="supervisor_evaluate",
                         prompt=json.dumps(evidence, default=str),

@@ -29,6 +29,7 @@ class GenerationRuntime:
         from odoo.addons.nexora_studio.services.generation.core.runtime_hooks import RuntimeHooks
         
         self.hooks = RuntimeHooks()
+        self.hooks.session_id = session_id
         
         self.workspace = WorkspaceAdapter(workspace_path, self.hooks)
         self.ai = AIRuntimeAdapter(ai_provider_manager, self.hooks)

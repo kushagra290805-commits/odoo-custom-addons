@@ -43,11 +43,19 @@ class AIRuntimeAdapter:
             if key in payload:
                 parameters[key] = payload[key]
                 
-        provider_override = payload.get('provider') or self._pm.env.context.get('ai_provider_override')
+        # Phase 49A.2: Role-differentiated execution model selection.
+        # Executor reads ai_executor_*_override; falls back to generic
+        # ai_*_override for backward compatibility.
+        _ctx = self._pm.env.context
+        provider_override = (payload.get('provider')
+                             or _ctx.get('ai_executor_provider_override')
+                             or _ctx.get('ai_provider_override'))
         if provider_override:
             parameters['provider'] = provider_override
 
-        model_override = payload.get('model') or self._pm.env.context.get('ai_model_override')
+        model_override = (payload.get('model')
+                          or _ctx.get('ai_executor_model_override')
+                          or _ctx.get('ai_model_override'))
         if model_override:
             parameters['model'] = model_override
                 
